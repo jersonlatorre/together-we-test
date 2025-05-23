@@ -2,21 +2,10 @@
 
 Sistema interactivo que combina detección de poses con interacción en tiempo real.
 
-## Estructura del Proyecto
-
-- `detector/`: Sistema de detección de poses usando YOLOv8
-- `interaction/`: Sistema de interacción en tiempo real
-
 ## Requisitos
 
-### Pose Detector
-
-- Python 3.8+
+- Python 3.10+
 - Dependencias listadas en `detector/requirements.txt`
-
-### Interaction
-
-- Sistema de interacción en tiempo real
 
 ## Instalación
 
