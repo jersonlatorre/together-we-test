@@ -10,38 +10,35 @@ Sistema interactivo que combina detección de poses con interacción en tiempo r
 ## Requisitos
 
 ### Pose Detector
+
 - Python 3.8+
 - Dependencias listadas en `detector/requirements.txt`
 
 ### Interaction
+
 - Sistema de interacción en tiempo real
 
 ## Instalación
 
 1. Clonar el repositorio:
+
 ```bash
 git clone https://github.com/tu-usuario/together-we-test.git
 cd together-we-test
 ```
 
-2. Configurar el detector de poses:
-```bash
-cd detector
-./run.sh
-```
-
 ## Uso
 
-1. Activar el detector de poses:
+1. Primero, ejecutar el detector de poses:
+
 ```bash
-cd detector
-source venv/bin/activate
-python pose_detector.py
+./run-detector.bat # en windows
+./run-detector.sh # en linux o macos
 ```
 
-2. Iniciar el sistema de interacción (instrucciones específicas pendientes)
+2. Luego, inicia el sistema de interacción:
 
 ```bash
-cd interaction/app
-make run
+./run-interaction.bat # en windows
+./run-interaction.sh # en linux o macos
 ```
