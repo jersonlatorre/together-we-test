@@ -1,295 +1,151 @@
-// MAX_POSES, PATTERNS y StateMachine se definen globalmente desde scripts
-
 let video
-let poses = []
-let socket
-let totalDetectedPoses = 0
-const DETECTION_INTERVAL = 100
-let isDetecting = false
-
-let poseGraphics
-let nextImg
-let lineImg
-let idleState
-let font
-let fontLoaded = false
-let nextImgLoaded = false
-let lineImgLoaded = false
-let backgroundImg = null
-let backgroundImgLoaded = false
-let cameras = [] // array para almacenar las cámaras disponibles
-let cameraSelect // elemento select para las cámaras
-let cameraSelectInitialized = false
-
-function preload() {
-  console.log('iniciando preload')
-  try {
-    // cargar la fuente
-    font = loadFont(
-      'assets/fonts/Roboto-Regular.ttf',
-      () => {
-        fontLoaded = true
-      },
-      (err) => {
-        console.error('error cargando fuente:', err)
-      }
-    )
-
-    // cargar la imagen del botón next
-    nextImg = loadImage(
-      'assets/images/next.svg',
-      () => {
-        nextImgLoaded = true
-      },
-      (err) => {
-        console.error('error cargando imagen next:', err)
-      }
-    )
-
-    // cargar la imagen de línea
-    lineImg = loadImage(
-      'assets/images/line.png',
-      () => {
-        console.log('lineImg cargada correctamente')
-        lineImgLoaded = true
-      },
-      (err) => {
-        console.error('error cargando imagen line:', err)
-      }
-    )
-
-    // cargar la imagen de fondo
-    backgroundImg = loadImage(
-      'assets/images/background.png',
-      () => {
-        console.log('backgroundImg cargada correctamente')
-        backgroundImgLoaded = true
-      },
-      (err) => {
-        console.error('error cargando imagen de fondo:', err)
-      }
-    )
-  } catch (error) {
-    console.error('error en preload:', error)
-  }
-}
-
-// función para solicitar acceso a las cámaras y luego listarlas
-async function setupCameras() {
-  try {
-    // primero pedimos permiso para acceder a la cámara para obtener las etiquetas completas
-    await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-    
-    // ahora enumeramos todos los dispositivos
-    const devices = await navigator.mediaDevices.enumerateDevices()
-    const videoDevices = devices.filter(device => device.kind === 'videoinput')
-    
-    cameras = videoDevices
-    console.log('cámaras detectadas:', videoDevices)
-    
-    // crear selector de cámara si hay más de una y no se ha inicializado
-    if (videoDevices.length > 0 && !cameraSelectInitialized) {
-      if (cameraSelect) {
-        cameraSelect.remove()
-      }
-      
-      cameraSelect = createSelect()
-      cameraSelect.position(10, 10)
-      cameraSelect.style('z-index', '9999')
-      cameraSelect.style('background-color', '#333')
-      cameraSelect.style('color', '#fff')
-      cameraSelect.style('padding', '5px')
-      cameraSelect.style('border', '1px solid #555')
-      
-      videoDevices.forEach((device, index) => {
-        // asegurar que hay etiqueta, o usar un nombre predeterminado
-        const label = device.label || `Cámara ${index + 1}`
-        cameraSelect.option(label, device.deviceId)
-      })
-      
-      cameraSelect.changed(changeCamera)
-      cameraSelectInitialized = true
-      
-      // si hay más de una cámara, agregar un botón para refrescar la lista
-      if (videoDevices.length > 1) {
-        let refreshButton = createButton('↻')
-        refreshButton.position(cameraSelect.width + 20, 10)
-        refreshButton.style('z-index', '9999')
-        refreshButton.style('background-color', '#333')
-        refreshButton.style('color', '#fff')
-        refreshButton.style('border', '1px solid #555')
-        refreshButton.style('cursor', 'pointer')
-        refreshButton.mousePressed(setupCameras)
-      }
-    }
-  } catch (err) {
-    console.error('error al configurar cámaras:', err)
-  }
-}
-
-// función para cambiar cámara
-function changeCamera() {
-  const deviceId = cameraSelect.value()
-  if (!deviceId) return
-  
-  // detener el video actual
-  if (video) {
-    video.remove()
-  }
-  
-  // crear nuevo video con el dispositivo seleccionado
-  const constraints = {
-    video: {
-      deviceId: { exact: deviceId },
-      width: { ideal: width },
-      height: { ideal: height }
-    }
-  }
-  
-  // crear nuevo video con el dispositivo seleccionado
-  video = createCapture(constraints)
-  video.size(width, height)
-  video.hide()
-  
-  // invertir el video horizontalmente
-  video.elt.style.transform = 'scaleX(-1)'
-  
-  // esperar a que el video esté listo antes de iniciar detección
-  video.elt.addEventListener('loadedmetadata', () => {
-    console.log('nueva cámara lista:', cameraSelect.selected())
-  })
-}
+let poseData = []
+let lastRequestTime = 0
+let requestInterval = 100
+let videoWidth = 640
+let videoHeight = 480
+let poseDetectionEndpoint = 'http://localhost:8000/detect'
+let scaleRatio = 1
+let offsetX = 0
+let offsetY = 0
 
 function setup() {
-  // calcular dimensiones para ratio 2:1
-  let canvasWidth = windowWidth
-  let canvasHeight = windowWidth / 2
+  createCanvas(windowWidth, windowHeight)
 
-  // si la altura calculada es mayor que windowHeight, ajustar basado en windowHeight
-  if (canvasHeight > windowHeight) {
-    canvasHeight = windowHeight
-    canvasWidth = windowHeight * 2
-  }
-
-  // forzar WebGL2
-  let canvas = createCanvas(canvasWidth, canvasHeight, WEBGL)
-  // verificar que estamos en WebGL2
-  let gl = canvas.GL
-
-  // configurar video con las mismas dimensiones que el canvas
   video = createCapture(VIDEO)
-  video.size(canvasWidth, canvasHeight)
+  video.size(videoWidth, videoHeight)
   video.hide()
-
-  // invertir el video horizontalmente
-  video.elt.style.transform = 'scaleX(-1)'
-
-  // usar fuente solo si está cargada
-  if (fontLoaded && font) {
-    textFont(font)
-  }
-
-  // crear buffer gráfico con el mismo tamaño que el canvas principal
-  poseGraphics = createGraphics(canvasWidth, canvasHeight, P2D)
-  poseGraphics.clear()
-  poseGraphics.blendMode(BLEND)
-  // eliminar canvas secundario del dom
-  poseGraphics.canvas.remove()
-
-  // inicializar estado idle
-  idleState = new IdleState(poseGraphics)
-  idleState.onEnter()
-
-  // inicializar socket
-  socket = io()
-
-  // esperar a que el video esté listo antes de iniciar detección
-  video.elt.addEventListener('loadedmetadata', () => {
-    // iniciar loop de detección
-    setInterval(detectPoses, DETECTION_INTERVAL)
-    
-    // configurar cámaras después de que el video principal esté listo
-    // esto asegura que tenemos permisos y podemos ver las etiquetas
-    setupCameras()
-  })
 }
 
-async function detectPoses() {
-  if (!video || !video.loadedmetadata || isDetecting) return
+function draw() {
+  background(20)
 
-  isDetecting = true
+  // Calculate scaling factor to cover the canvas while maintaining aspect ratio
+  let videoRatio = videoWidth / videoHeight
+  let canvasRatio = width / height
 
+  if (canvasRatio > videoRatio) {
+    // Canvas is wider than video
+    scaleRatio = width / videoWidth
+    offsetX = 0
+    offsetY = (height - videoHeight * scaleRatio) / 2
+  } else {
+    // Canvas is taller than video
+    scaleRatio = height / videoHeight
+    offsetX = (width - videoWidth * scaleRatio) / 2
+    offsetY = 0
+  }
+
+  // push()
+  // translate(width / 2, height / 2)
+  // scale(-1, 1) // Flip horizontally
+  // let scaledWidth = videoWidth * scaleRatio
+  // let scaledHeight = videoHeight * scaleRatio
+  // image(video, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight)
+  // pop()
+
+  if (millis() - lastRequestTime > requestInterval) {
+    requestPoses()
+    lastRequestTime = millis()
+  }
+
+  drawPoses()
+}
+
+async function requestPoses() {
   try {
-    // crear un canvas temporal para capturar el frame
-    const tempCanvas = document.createElement('canvas')
-    tempCanvas.width = video.width
-    tempCanvas.height = video.height
-    const tempCtx = tempCanvas.getContext('2d')
+    let canvas = document.createElement('canvas')
+    canvas.width = videoWidth
+    canvas.height = videoHeight
+    let ctx = canvas.getContext('2d')
 
-    // invertir el contexto horizontalmente
-    tempCtx.translate(tempCanvas.width, 0)
-    tempCtx.scale(-1, 1)
+    ctx.scale(-1, 1)
+    ctx.drawImage(video.elt, -videoWidth, 0, videoWidth, videoHeight)
 
-    // dibujar el frame actual
-    tempCtx.drawImage(video.elt, 0, 0, video.width, video.height)
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg')
+    })
 
-    // convertir a blob
-    const blob = await new Promise((resolve) => tempCanvas.toBlob(resolve, 'image/jpeg', 0.8))
-
-    // crear form data
     const formData = new FormData()
-    formData.append('file', blob, 'frame.jpg')
+    formData.append('file', blob, 'webcam.jpg')
 
-    const response = await fetch('http://localhost:8000/detect', {
+    const response = await fetch(poseDetectionEndpoint, {
       method: 'POST',
       body: formData,
     })
 
-    if (!response.ok) throw new Error('error en la detección')
-
-    const data = await response.json()
-
-    // actualizar poses
-    if (data.poses) {
-      poses = data.poses.map((pose) => ({
-        id: pose.id,
-        keypoints: pose.keypoints.map((kp) => ({
-          x: kp.x * width,
-          y: kp.y * height,
-          confidence: kp.confidence,
-        })),
-        timestamp: millis(),
-      }))
+    if (response.ok) {
+      const data = await response.json()
+      poseData = data.poses
+      console.log('Poses detected:', poseData.length)
+    } else {
+      console.error('Error fetching poses:', response.statusText)
     }
   } catch (error) {
-    console.error('error:', error)
-  } finally {
-    isDetecting = false
+    console.error('Error requesting poses:', error)
   }
 }
 
-function draw() {
-  // Limpiar el canvas principal
-  translate(-width / 2, -height / 2)
-  idleState.draw(poses)
-}
+function drawPoses() {
+  if (!poseData || poseData.length === 0) return
 
-function windowResized() {
-  // recalcular dimensiones para ratio 2:1
-  let canvasWidth = windowWidth
-  let canvasHeight = windowWidth / 2
+  push()
+  translate(width / 2, height / 2)
 
-  // si la altura calculada es mayor que windowHeight, ajustar basado en windowHeight
-  if (canvasHeight > windowHeight) {
-    canvasHeight = windowHeight
-    canvasWidth = windowHeight * 2
+  for (const pose of poseData) {
+    const keypoints = pose.keypoints
+
+    drawConnections(keypoints)
+    for (const keypoint of keypoints) {
+      if (keypoint.confidence > 0.3) {
+        // Scale keypoints to match the video scaling
+        const x = (keypoint.x - 0.5) * videoWidth * scaleRatio
+        const y = (keypoint.y - 0.5) * videoHeight * scaleRatio
+
+        fill(255, 0, 0)
+        noStroke()
+        ellipse(x, y, 10, 10)
+      }
+    }
   }
 
-  resizeCanvas(canvasWidth, canvasHeight)
-  poseGraphics.resizeCanvas(canvasWidth, canvasHeight)
-  
-  // ajustar posición del selector de cámaras
-  if (cameraSelect) {
-    cameraSelect.position(10, 10)
+  pop()
+}
+
+function drawConnections(keypoints) {
+  const connections = [
+    [0, 1],
+    [0, 2],
+    [1, 3],
+    [2, 4],
+    [5, 7],
+    [7, 9],
+    [6, 8],
+    [8, 10],
+    [5, 6],
+    [5, 11],
+    [6, 12],
+    [11, 13],
+    [13, 15],
+    [12, 14],
+    [14, 16],
+  ]
+
+  stroke(0, 255, 0)
+  strokeWeight(3)
+
+  for (const [p1, p2] of connections) {
+    const point1 = keypoints[p1]
+    const point2 = keypoints[p2]
+
+    if (point1 && point2 && point1.confidence > 0.3 && point2.confidence > 0.3) {
+      // Scale connection points to match the video scaling
+      const x1 = (point1.x - 0.5) * videoWidth * scaleRatio
+      const y1 = (point1.y - 0.5) * videoHeight * scaleRatio
+      const x2 = (point2.x - 0.5) * videoWidth * scaleRatio
+      const y2 = (point2.y - 0.5) * videoHeight * scaleRatio
+
+      line(x1, y1, x2, y2)
+    }
   }
 }
