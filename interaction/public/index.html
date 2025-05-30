@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Together We</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5@2.0.2/lib/p5.min.js"></script>
     <script src="sketch.js"></script>
     <style>
       body {
@@ -20,7 +20,29 @@
       canvas {
         display: block;
       }
+      .start-button {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: #4CAF50;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 4px;
+        z-index: 100;
+      }
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
-  <body></body>
+  <body>
+    <div id="startButton" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #4CAF50; color: white; padding: 15px 32px; text-align: center; cursor: pointer; z-index: 100;">Iniciar</div>
+  </body>
 </html>
