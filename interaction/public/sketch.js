@@ -25,8 +25,18 @@ uniform sampler2D tex0; // Textura de entrada (canvas)
 uniform vec2 canvasSize; // Tamaño del canvas sin densidad de píxeles
 uniform vec2 texelSize; // Tamaño de un píxel físico incluyendo densidad
 
-// Uniforms personalizados
-uniform float pixelSize;
+// Uniforms personalizados para líneas
+uniform int lineCount; // Número de líneas
+uniform float lines[1000]; // Array plano con las líneas (x1, y1, x2, y2)
+
+// Función para calcular la distancia de un punto a una línea
+float distToLine(vec2 p, vec2 a, vec2 b) {
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+    float t = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    vec2 closest = a + t * ba;
+    return length(p - closest);
+}
 
 void main() {
     // Obtener coordenadas de textura
@@ -35,15 +45,22 @@ void main() {
     // Convertir a coordenadas de píxeles
     vec2 pixelCoord = uv * canvasSize;
     
-    // Aplicar efecto de pixelación
-    pixelCoord = floor(pixelCoord / pixelSize) * pixelSize + pixelSize * 0.5;
+    // Color base de la textura original
+    vec4 color = vec4(0.0, 0.0, 0.0, 1.0); // Fondo negro
     
-    // Volver a normalizar a [0,1]
-    vec2 pixelatedUV = pixelCoord / canvasSize;
+    // Dibujar líneas
+    float lineThickness = 1.0;
     
-    // Muestrear la textura con las coordenadas pixeladas
-    vec4 color = texture2D(tex0, pixelatedUV);
-    
+    // Dibujar todas las líneas pasadas por uniform
+    for (int i = 0; i < 1000; i++) {
+        if (i >= lineCount) break;
+        vec2 start = vec2(lines[i*4], lines[i*4+1]);
+        vec2 end = vec2(lines[i*4+2], lines[i*4+3]);
+        float dist = distToLine(pixelCoord, start, end);
+        if (dist < lineThickness) {
+            color = vec4(1.0, 1.0, 1.0, 1.0);
+        }
+    }
     // Salida final
     gl_FragColor = color;
 }
@@ -102,6 +119,28 @@ function draw() {
   background(20)
   if (!appStarted || !video) return
 
+  // Procesar poses si es el momento
+  if (millis() - lastRequestTime > requestInterval) {
+    requestPoses()
+    lastRequestTime = millis()
+  }
+
+  // Dibujar el video en el buffer compatible si es necesario para el shader
+  if (video && (video.loadedmetadata || video.elt)) {
+    videoBuffer.clear()
+    if (inputSource === 'webcam') {
+      // Invertir horizontalmente para webcam
+      videoBuffer.push()
+      videoBuffer.translate(videoWidth, 0)
+      videoBuffer.scale(-1, 1)
+      videoBuffer.image(video, 0, 0, videoWidth, videoHeight)
+      videoBuffer.pop()
+    } else {
+      videoBuffer.image(video, 0, 0, videoWidth, videoHeight)
+    }
+  }
+
+  // Calcular dimensiones para las líneas
   let videoRatio = videoWidth / videoHeight
   let canvasRatio = width / height
   let scaledWidth, scaledHeight
@@ -117,45 +156,33 @@ function draw() {
   let x = (width - scaledWidth) / 2
   let y = (height - scaledHeight) / 2
 
-  // Draw video directly to the canvas if showVideo is true
-  if (showVideo) {
+  // Preparar datos de líneas para el shader como un array plano de floats
+  let linesArray = [];
+  let count = Math.min(lineData.length, 1000);
+  for (let i = 0; i < count; i++) {
+    const lineObj = lineData[i];
+    let x1, y1, x2, y2;
     if (inputSource === 'webcam') {
-      push()
-      translate(width, 0)
-      scale(-1, 1)
-      image(video, width - scaledWidth - x, y, scaledWidth, scaledHeight)
-      pop()
-    } else if (video.elt) {
-      drawingContext.drawImage(video.elt, x, y, scaledWidth, scaledHeight)
-    }
-  }
-
-  // Draw lines on top of the video
-  linesLayer.clear()
-  drawLines(linesLayer)
-  image(linesLayer, 0, 0, width, height)
-
-  if (millis() - lastRequestTime > requestInterval) {
-    requestPoses()
-    lastRequestTime = millis()
-  }
-
-  // Dibujar el video en el buffer compatible
-  if (video && (video.loadedmetadata || video.elt)) {
-    videoBuffer.clear();
-    if (inputSource === 'webcam') {
-      // Invertir horizontalmente para webcam
-      videoBuffer.push();
-      videoBuffer.translate(videoWidth, 0);
-      videoBuffer.scale(-1, 1);
-      videoBuffer.image(video, 0, 0, videoWidth, videoHeight);
-      videoBuffer.pop();
+      x1 = width - (lineObj.start.x * scaledWidth + x);
+      y1 = lineObj.start.y * scaledHeight + y;
+      x2 = width - (lineObj.end.x * scaledWidth + x);
+      y2 = lineObj.end.y * scaledHeight + y;
     } else {
-      videoBuffer.image(video, 0, 0, videoWidth, videoHeight);
+      x1 = lineObj.start.x * scaledWidth + x;
+      y1 = lineObj.start.y * scaledHeight + y;
+      x2 = lineObj.end.x * scaledWidth + x;
+      y2 = lineObj.end.y * scaledHeight + y;
     }
+    linesArray.push(x1, y1, x2, y2);
   }
+  // Rellenar el array hasta 4000 elementos
+  while (linesArray.length < 4000) linesArray.push(0);
 
-  s.setUniform('pixelSize', 10.0)
+  s.setUniform('lines', linesArray);
+  s.setUniform('lineCount', count);
+  s.setUniform('canvasSize', [width, height]);
+
+  // Aplicar shader (esto dibuja las líneas)
   filter(s)
 }
 
