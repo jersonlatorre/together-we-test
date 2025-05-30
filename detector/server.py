@@ -52,6 +52,7 @@ class PoseResponse(BaseModel):
     lines: List[Line]
     width: int
     height: int
+    heads: List[Point]  # <-- NUEVO CAMPO
 
 
 @app.post("/detect", response_model=PoseResponse)
@@ -173,11 +174,34 @@ async def detect_poses(file: UploadFile = File(...)):
                         add_line((kps[KNEE_R]['x'], kps[KNEE_R]['y']), (kps[ANKLE_R]['x'], kps[ANKLE_R]['y']), min(kps[KNEE_R]['confidence'], kps[ANKLE_R]['confidence']))
     lines = semantic_connections
 
-    # Devolver las líneas procesadas
+    # Extraer posiciones de las cabezas
+    heads = []
+    if len(results) > 0 and results[0].keypoints is not None:
+        for result in results:
+            if result.keypoints is not None:
+                for keypoints in result.keypoints.data:
+                    if len(keypoints) > 0:
+                        keypoints_np = keypoints.cpu().numpy()
+                        kps = []
+                        for point in keypoints_np:
+                            x = float(point[0] / TARGET_WIDTH)
+                            y = float(point[1] / new_height)
+                            confidence = float(point[2])
+                            if point[0] < 5 or point[1] < 5:
+                                confidence = 0.01
+                            x = max(0.001, min(0.999, x))
+                            y = max(0.001, min(0.999, y))
+                            kps.append({'x': x, 'y': y, 'confidence': confidence})
+                        # HEAD = 0 (ya está definido arriba)
+                        if kps[HEAD]['confidence'] > CONFIDENCE_THRESHOLD:
+                            heads.append(Point(x=kps[HEAD]['x'], y=kps[HEAD]['y']))
+
+    # Devolver las líneas procesadas y las cabezas
     return PoseResponse(
         lines=lines,
         width=TARGET_WIDTH,
         height=new_height,
+        heads=heads
     )
 
 

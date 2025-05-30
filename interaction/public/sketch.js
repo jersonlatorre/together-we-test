@@ -1,5 +1,6 @@
 let video
 let lineData = []
+let headData = [] // <-- NUEVO: almacena las posiciones de las cabezas
 let lastRequestTime = 0
 let requestInterval = 100
 let videoWidth = 1920
@@ -9,6 +10,7 @@ let linesLayer
 let startButton
 let appStarted = false
 let inputSource = 'video'
+// let inputSource = 'webcam'
 let videoPath = '/assets/videos/demo-2.mp4'
 let showVideo = false // Controla si se dibuja el video
 let s
@@ -27,42 +29,53 @@ uniform vec2 texelSize; // Tamaño de un píxel físico incluyendo densidad
 
 // Uniforms personalizados para líneas
 uniform int lineCount; // Número de líneas
-uniform float lines[1000]; // Array plano con las líneas (x1, y1, x2, y2)
+uniform float lines[600]; // Array plano con las líneas (x1, y1, x2, y2) máx 150 líneas (150*4=600)
+
+// Uniforms personalizados para cabezas
+uniform int headCount; // Número de cabezas
+uniform float heads[200]; // Array plano con las posiciones de cabezas (x, y) máx 50 cabezas (50*2=100)
+// NOTA: Si necesitas más, aumenta estos valores, pero verifica compatibilidad WebGL.
 
 // Función para calcular la distancia de un punto a una línea
-float distToLine(vec2 p, vec2 a, vec2 b) {
+float segmentGlow(vec2 p, vec2 a, vec2 b, float radius, float softness) {
     vec2 pa = p - a;
     vec2 ba = b - a;
-    float t = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-    vec2 closest = a + t * ba;
-    return length(p - closest);
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    float dist = length(pa - ba * h) - radius;
+    return exp(-pow(dist / softness, 0.5));
 }
 
+// SDF para esfera (cabeza)
+float sphereSDF(vec2 p, float size) {
+    return length(p) - size;
+}
+
+
 void main() {
-    // Obtener coordenadas de textura
     vec2 uv = vTexCoord;
-    
-    // Convertir a coordenadas de píxeles
     vec2 pixelCoord = uv * canvasSize;
-    
-    // Color base de la textura original
-    vec4 color = vec4(0.0, 0.0, 0.0, 1.0); // Fondo negro
-    
-    // Dibujar líneas
-    float lineThickness = 1.0;
-    
-    // Dibujar todas las líneas pasadas por uniform
-    for (int i = 0; i < 1000; i++) {
+    float glow = 0.0;
+    for (int i = 0; i < 100; i++) { // Máximo 100 líneas
         if (i >= lineCount) break;
         vec2 start = vec2(lines[i*4], lines[i*4+1]);
         vec2 end = vec2(lines[i*4+2], lines[i*4+3]);
-        float dist = distToLine(pixelCoord, start, end);
-        if (dist < lineThickness) {
-            color = vec4(1.0, 1.0, 1.0, 1.0);
-        }
+        glow += segmentGlow(pixelCoord, start, end, 0.0, 35.0 / sqrt(float(lineCount)));
     }
-    // Salida final
-    gl_FragColor = color;
+    // --- NUEVO BLOQUE: Glow por cabezas ---
+    float headGlow = 0.0;
+    for (int i = 0; i < 50; i++) {
+        if (i >= headCount) break;
+        vec2 headPos = vec2(heads[i*2], heads[i*2+1]);
+        float dist = length(pixelCoord - headPos);
+        headGlow += 10.0 / (dist + 0.01); //
+    }
+    headGlow = min(headGlow, 1.0); // clamp para evitar saturación
+
+    // --- FIN BLOQUE NUEVO ---
+    glow = min(glow, 1.0);
+    vec3 baseColor = mix(vec3(0.0,0.0,0.2), vec3(1.0,1.0,1.0), glow);
+    vec3 finalColor = mix(baseColor, vec3(1.0,1.0,0.0), headGlow); // mezcla con amarillo
+    gl_FragColor = vec4(finalColor, 1.0);
 }
 `
 
@@ -157,30 +170,49 @@ function draw() {
   let y = (height - scaledHeight) / 2
 
   // Preparar datos de líneas para el shader como un array plano de floats
-  let linesArray = [];
-  let count = Math.min(lineData.length, 1000);
+  let linesArray = []
+  let count = Math.min(lineData.length, 100) // Máximo 100 líneas
   for (let i = 0; i < count; i++) {
-    const lineObj = lineData[i];
-    let x1, y1, x2, y2;
+    const lineObj = lineData[i]
+    let x1, y1, x2, y2
     if (inputSource === 'webcam') {
-      x1 = width - (lineObj.start.x * scaledWidth + x);
-      y1 = lineObj.start.y * scaledHeight + y;
-      x2 = width - (lineObj.end.x * scaledWidth + x);
-      y2 = lineObj.end.y * scaledHeight + y;
+      x1 = width - (lineObj.start.x * scaledWidth + x)
+      y1 = lineObj.start.y * scaledHeight + y
+      x2 = width - (lineObj.end.x * scaledWidth + x)
+      y2 = lineObj.end.y * scaledHeight + y
     } else {
-      x1 = lineObj.start.x * scaledWidth + x;
-      y1 = lineObj.start.y * scaledHeight + y;
-      x2 = lineObj.end.x * scaledWidth + x;
-      y2 = lineObj.end.y * scaledHeight + y;
+      x1 = lineObj.start.x * scaledWidth + x
+      y1 = lineObj.start.y * scaledHeight + y
+      x2 = lineObj.end.x * scaledWidth + x
+      y2 = lineObj.end.y * scaledHeight + y
     }
-    linesArray.push(x1, y1, x2, y2);
+    linesArray.push(x1, y1, x2, y2)
   }
   // Rellenar el array hasta 4000 elementos
-  while (linesArray.length < 4000) linesArray.push(0);
+  while (linesArray.length < 400) linesArray.push(0) // 100 líneas * 4 valores
 
-  s.setUniform('lines', linesArray);
-  s.setUniform('lineCount', count);
-  s.setUniform('canvasSize', [width, height]);
+  // --- NUEVO BLOQUE: preparar y pasar heads ---
+  let headsArray = []
+  let headCount = Math.min(headData.length, 50) // Máximo 50 cabezas
+  for (let i = 0; i < headCount; i++) {
+    const h = headData[i]
+    let hx, hy
+    if (inputSource === 'webcam') {
+      hx = width - (h.x * scaledWidth + x)
+      hy = h.y * scaledHeight + y
+    } else {
+      hx = h.x * scaledWidth + x
+      hy = h.y * scaledHeight + y
+    }
+    headsArray.push(hx, hy)
+  }
+  s.setUniform('heads', headsArray)
+  s.setUniform('headCount', headCount)
+  // --- FIN BLOQUE NUEVO ---
+
+  s.setUniform('lines', linesArray)
+  s.setUniform('lineCount', count)
+  s.setUniform('canvasSize', [width, height])
 
   // Aplicar shader (esto dibuja las líneas)
   filter(s)
@@ -219,6 +251,7 @@ async function requestPoses() {
     if (response.ok) {
       const data = await response.json()
       lineData = data.lines || []
+      headData = data.heads || [] // <-- NUEVO: recibe las cabezas
     }
   } catch (error) {
     console.error('Error:', error)
