@@ -15,42 +15,41 @@ class Detection {
 
   async init() {
     try {
-      // cargar y crear shader
-      this.fragShader = await loadStrings('shaders/effect.frag')
-      this.fragShader = this.fragShader.join('\n')
-
-      // crear buffers
-      this.effectsLayer = createGraphics(windowWidth, windowHeight)
-      this.videoBuffer = createGraphics(CONFIG.video.width, CONFIG.video.height)
-
-      // crear shader
-      this.shader = createFilterShader(this.fragShader)
-      if (!this.shader) {
-        throw new Error('Failed to create shader')
-      }
-
-      // configurar shader
-      this.shader.setUniform('pixelSize', CONFIG.shader.pixelSize)
-      this.shader.setUniform('brightnessThreshold', CONFIG.shader.brightnessThreshold)
-      this.shader.setUniform('canvasSize', [width, height])
-      this.shader.setUniform('texelSize', [1.0 / width, 1.0 / height])
-
-      this.isFragShaderLoaded = true
-      console.log('Shader initialized successfully')
-
-      // iniciar video
-      if (this.inputSource === 'webcam') {
-        this.video = createCapture(VIDEO)
-        this.video.size(CONFIG.video.width, CONFIG.video.height)
-        this.video.hide()
-      } else {
-        this.initVideoElement()
-      }
-
+      await this.initShader()
+      await this.initVideo()
       return true
     } catch (error) {
       console.error('Error in init:', error)
       return false
+    }
+  }
+
+  async initShader() {
+    this.fragShader = await loadStrings('shaders/effect.frag')
+    this.fragShader = this.fragShader.join('\n')
+
+    this.effectsLayer = createGraphics(windowWidth, windowHeight)
+    this.videoBuffer = createGraphics(CONFIG.video.width, CONFIG.video.height)
+
+    this.shader = createFilterShader(this.fragShader)
+    if (!this.shader) throw new Error('Failed to create shader')
+
+    this.shader.setUniform('pixelSize', CONFIG.shader.pixelSize)
+    this.shader.setUniform('brightnessThreshold', CONFIG.shader.brightnessThreshold)
+    this.shader.setUniform('canvasSize', [width, height])
+    this.shader.setUniform('texelSize', [1.0 / width, 1.0 / height])
+
+    this.isFragShaderLoaded = true
+    console.log('Shader initialized successfully')
+  }
+
+  async initVideo() {
+    if (this.inputSource === 'webcam') {
+      this.video = createCapture(VIDEO)
+      this.video.size(CONFIG.video.width, CONFIG.video.height)
+      this.video.hide()
+    } else {
+      this.initVideoElement()
     }
   }
 
@@ -84,6 +83,19 @@ class Detection {
       .catch(console.error)
   }
 
+  drawVideoToBuffer() {
+    this.videoBuffer.clear()
+    if (this.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
+      this.videoBuffer.push()
+      this.videoBuffer.translate(CONFIG.video.width, 0)
+      this.videoBuffer.scale(-1, 1)
+      this.videoBuffer.image(this.video, 0, 0, CONFIG.video.width, CONFIG.video.height)
+      this.videoBuffer.pop()
+    } else {
+      this.videoBuffer.image(this.video, 0, 0, CONFIG.video.width, CONFIG.video.height)
+    }
+  }
+
   async requestPoses(video) {
     if (!video?.elt) return
 
@@ -93,7 +105,7 @@ class Detection {
       canvas.height = CONFIG.video.height
       const ctx = canvas.getContext('2d')
 
-      if (video.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
+      if (this.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
         ctx.scale(-1, 1)
         ctx.drawImage(video.elt, -CONFIG.video.width, 0, CONFIG.video.width, CONFIG.video.height)
       } else if (video.elt.readyState >= 2) {
@@ -128,31 +140,31 @@ class Detection {
 
     for (const skeleton of this.skeletonData) {
       const kps = skeleton.keypoints
-
       if (!kps || kps.length < 17) continue
 
-      // procesar cabeza
-      if (kps[CONFIG.keypoints.HEAD].confidence > CONFIG.pose.confidenceThreshold) {
-        if (kps[CONFIG.keypoints.SHOULDER_L].confidence > CONFIG.pose.confidenceThreshold && 
-            kps[CONFIG.keypoints.SHOULDER_R].confidence > CONFIG.pose.confidenceThreshold) {
-          const shoulderDistance = dist(
-            kps[CONFIG.keypoints.SHOULDER_L].x,
-            kps[CONFIG.keypoints.SHOULDER_L].y,
-            kps[CONFIG.keypoints.SHOULDER_R].x,
-            kps[CONFIG.keypoints.SHOULDER_R].y
-          )
-          this.headData.push({
-            x: kps[CONFIG.keypoints.HEAD].x,
-            y: kps[CONFIG.keypoints.HEAD].y,
-            shoulderDistance: shoulderDistance,
-          })
-        }
-      }
-
+      this.processHead(kps)
       const virtualPoints = this.calculateVirtualPoints(kps)
-      if (!virtualPoints) continue
+      if (virtualPoints) {
+        this.addSkeletonLines(kps, virtualPoints)
+      }
+    }
+  }
 
-      this.addSkeletonLines(kps, virtualPoints)
+  processHead(kps) {
+    if (kps[CONFIG.keypoints.HEAD].confidence > CONFIG.pose.confidenceThreshold &&
+        kps[CONFIG.keypoints.SHOULDER_L].confidence > CONFIG.pose.confidenceThreshold && 
+        kps[CONFIG.keypoints.SHOULDER_R].confidence > CONFIG.pose.confidenceThreshold) {
+      const shoulderDistance = dist(
+        kps[CONFIG.keypoints.SHOULDER_L].x,
+        kps[CONFIG.keypoints.SHOULDER_L].y,
+        kps[CONFIG.keypoints.SHOULDER_R].x,
+        kps[CONFIG.keypoints.SHOULDER_R].y
+      )
+      this.headData.push({
+        x: kps[CONFIG.keypoints.HEAD].x,
+        y: kps[CONFIG.keypoints.HEAD].y,
+        shoulderDistance
+      })
     }
   }
 
@@ -162,80 +174,61 @@ class Detection {
       return null
     }
 
-    const nuca = {
+    const nape = {
       x: (kps[CONFIG.keypoints.SHOULDER_L].x + kps[CONFIG.keypoints.SHOULDER_R].x) / 2,
       y: (kps[CONFIG.keypoints.SHOULDER_L].y + kps[CONFIG.keypoints.SHOULDER_R].y) / 2,
-      conf: Math.min(kps[CONFIG.keypoints.SHOULDER_L].confidence, kps[CONFIG.keypoints.SHOULDER_R].confidence),
+      conf: Math.min(kps[CONFIG.keypoints.SHOULDER_L].confidence, kps[CONFIG.keypoints.SHOULDER_R].confidence)
     }
 
     if (kps[CONFIG.keypoints.HEAD].confidence > CONFIG.pose.confidenceThreshold) {
-      nuca.y = nuca.y * 0.8 + kps[CONFIG.keypoints.HEAD].y * 0.2
+      nape.y = nape.y * 0.8 + kps[CONFIG.keypoints.HEAD].y * 0.2
     }
 
-    const shoulders = {
-      left: kps[CONFIG.keypoints.SHOULDER_L].confidence > CONFIG.pose.confidenceThreshold
-        ? {
-            x: (nuca.x + kps[CONFIG.keypoints.SHOULDER_L].x) / 2,
-            y: (nuca.y + kps[CONFIG.keypoints.SHOULDER_L].y) / 2,
-            conf: Math.min(nuca.conf, kps[CONFIG.keypoints.SHOULDER_L].confidence),
-          }
-        : null,
-      right: kps[CONFIG.keypoints.SHOULDER_R].confidence > CONFIG.pose.confidenceThreshold
-        ? {
-            x: (nuca.x + kps[CONFIG.keypoints.SHOULDER_R].x) / 2,
-            y: (nuca.y + kps[CONFIG.keypoints.SHOULDER_R].y) / 2,
-            conf: Math.min(nuca.conf, kps[CONFIG.keypoints.SHOULDER_R].confidence),
-          }
-        : null,
-    }
-
-    return { nuca, shoulders }
-  }
-
-  addSkeletonLines(kps, virtualPoints) {
-    const { nuca, shoulders } = virtualPoints
-
-    const addLine = (p1, p2, conf) => {
-      if (conf > CONFIG.pose.confidenceThreshold) {
-        this.lineData.push({
-          start: { x: p1[0], y: p1[1] },
-          end: { x: p2[0], y: p2[1] },
-          confidence: conf,
-        })
+    return {
+      nape,
+      shoulders: {
+        left: this.createShoulderPoint(nape, kps[CONFIG.keypoints.SHOULDER_L]),
+        right: this.createShoulderPoint(nape, kps[CONFIG.keypoints.SHOULDER_R])
       }
     }
-
-    const lines = [
-      [[kps[CONFIG.keypoints.HEAD].x, kps[CONFIG.keypoints.HEAD].y], [nuca.x, nuca.y], Math.min(kps[CONFIG.keypoints.HEAD].confidence, nuca.conf)],
-      [[shoulders.left.x, shoulders.left.y], [kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y], Math.min(shoulders.left.conf, kps[CONFIG.keypoints.ELBOW_L].confidence)],
-      [[kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y], [kps[CONFIG.keypoints.WRIST_L].x, kps[CONFIG.keypoints.WRIST_L].y], Math.min(kps[CONFIG.keypoints.ELBOW_L].confidence, kps[CONFIG.keypoints.WRIST_L].confidence)],
-      [[shoulders.right.x, shoulders.right.y], [kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y], Math.min(shoulders.right.conf, kps[CONFIG.keypoints.ELBOW_R].confidence)],
-      [[kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y], [kps[CONFIG.keypoints.WRIST_R].x, kps[CONFIG.keypoints.WRIST_R].y], Math.min(kps[CONFIG.keypoints.ELBOW_R].confidence, kps[CONFIG.keypoints.WRIST_R].confidence)],
-      [[kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], [kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y], Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.KNEE_L].confidence)],
-      [[kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y], [kps[CONFIG.keypoints.ANKLE_L].x, kps[CONFIG.keypoints.ANKLE_L].y], Math.min(kps[CONFIG.keypoints.KNEE_L].confidence, kps[CONFIG.keypoints.ANKLE_L].confidence)],
-      [[kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y], [kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y], Math.min(kps[CONFIG.keypoints.HIP_R].confidence, kps[CONFIG.keypoints.KNEE_R].confidence)],
-      [[kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y], [kps[CONFIG.keypoints.ANKLE_R].x, kps[CONFIG.keypoints.ANKLE_R].y], Math.min(kps[CONFIG.keypoints.KNEE_R].confidence, kps[CONFIG.keypoints.ANKLE_R].confidence)],
-      [[nuca.x, nuca.y], [shoulders.left.x, shoulders.left.y], Math.min(nuca.conf, shoulders.left.conf)],
-      [[nuca.x, nuca.y], [shoulders.right.x, shoulders.right.y], Math.min(nuca.conf, shoulders.right.conf)],
-      [[shoulders.left.x, shoulders.left.y], [kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], Math.min(shoulders.left.conf, kps[CONFIG.keypoints.HIP_L].confidence)],
-      [[shoulders.right.x, shoulders.right.y], [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y], Math.min(shoulders.right.conf, kps[CONFIG.keypoints.HIP_R].confidence)],
-      [[kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y], Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.HIP_R].confidence)],
-    ]
-
-    lines.forEach(([p1, p2, conf]) => addLine(p1, p2, conf))
   }
 
-  drawVideoToBuffer() {
-    this.videoBuffer.clear()
-    if (this.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
-      this.videoBuffer.push()
-      this.videoBuffer.translate(CONFIG.video.width, 0)
-      this.videoBuffer.scale(-1, 1)
-      this.videoBuffer.image(this.video, 0, 0, CONFIG.video.width, CONFIG.video.height)
-      this.videoBuffer.pop()
-    } else {
-      this.videoBuffer.image(this.video, 0, 0, CONFIG.video.width, CONFIG.video.height)
+  createShoulderPoint(nape, shoulder) {
+    return shoulder.confidence > CONFIG.pose.confidenceThreshold
+      ? {
+          x: (nape.x + shoulder.x) / 2,
+          y: (nape.y + shoulder.y) / 2,
+          conf: Math.min(nape.conf, shoulder.confidence)
+        }
+      : null
+  }
+
+  draw() {
+    if (!this.isFragShaderLoaded || !this.shader || !this.video) {
+      console.log('Skipping draw:', {
+        shaderLoaded: this.isFragShaderLoaded,
+        hasShader: !!this.shader,
+        hasVideo: !!this.video,
+      })
+      return
     }
+
+    if (millis() - this.lastRequestTime > CONFIG.pose.requestInterval) {
+      this.requestPoses(this.video)
+      this.lastRequestTime = millis()
+    }
+
+    this.processPoseData()
+    if (this.video && (this.video.loadedmetadata || this.video.elt)) {
+      this.drawVideoToBuffer()
+    }
+
+    const dimensions = this.calculateDimensions()
+    const { linesArray, count } = this.prepareLinesData(dimensions)
+    const { headsArray, headCount } = this.prepareHeadsData(dimensions)
+
+    this.updateShader(linesArray, count, headsArray, headCount)
+    this.drawStarLines(dimensions)
   }
 
   calculateDimensions() {
@@ -247,51 +240,6 @@ class Detection {
     const y = (height - scaledHeight) / 2
 
     return { scaledWidth, scaledHeight, x, y }
-  }
-
-  prepareLinesData({ scaledWidth, scaledHeight, x, y }) {
-    const linesArray = []
-    const count = Math.min(this.lineData.length, 600)
-
-    for (let i = 0; i < count; i++) {
-      const lineObj = this.lineData[i]
-      const coords = this.calculateLineCoordinates(lineObj, scaledWidth, scaledHeight, x, y)
-      linesArray.push(...coords)
-    }
-
-    // rellenar array hasta 400 elementos
-    while (linesArray.length < 400) linesArray.push(0)
-
-    return { linesArray, count }
-  }
-
-  calculateLineCoordinates(lineObj, scaledWidth, scaledHeight, x, y) {
-    if (this.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
-      return [lineObj.start.x * scaledWidth + x, lineObj.start.y * scaledHeight + y, lineObj.end.x * scaledWidth + x, lineObj.end.y * scaledHeight + y]
-    }
-
-    return [lineObj.start.x * scaledWidth + x, lineObj.start.y * scaledHeight + y, lineObj.end.x * scaledWidth + x, lineObj.end.y * scaledHeight + y]
-  }
-
-  prepareHeadsData({ scaledWidth, scaledHeight, x, y }) {
-    const headsArray = []
-    const headCount = Math.min(this.headData.length, 50)
-
-    for (let i = 0; i < headCount; i++) {
-      const h = this.headData[i]
-      const coords = this.calculateHeadCoordinates(h, scaledWidth, scaledHeight, x, y)
-      headsArray.push(...coords)
-    }
-
-    return { headsArray, headCount }
-  }
-
-  calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y) {
-    if (this.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
-      return [head.x * scaledWidth + x, head.y * scaledHeight + y]
-    }
-
-    return [head.x * scaledWidth + x, head.y * scaledHeight + y]
   }
 
   updateShader(linesArray, count, headsArray, headCount) {
@@ -314,16 +262,14 @@ class Detection {
       const coords = this.calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y)
       const radius = head.shoulderDistance * scaledWidth * 0.4
 
-      // dibujar N líneas en ángulos distribuidos uniformemente
       let N = 12
       for (let i = 0; i < N; i++) {
-        const angle = (2 * (i * PI)) / N // 36 grados entre cada línea
+        const angle = (2 * (i * PI)) / N
         const endX = coords[0] + cos(angle) * radius
         const endY = coords[1] + sin(angle) * radius
-
-        // punto de inicio a mitad del radio
         const startX = coords[0] + cos(angle) * (radius * 0.85)
         const startY = coords[1] + sin(angle) * (radius * 0.85)
+        
         this.effectsLayer.strokeWeight(1.5)
         this.effectsLayer.line(startX, startY, endX, endY)
       }
@@ -334,41 +280,79 @@ class Detection {
     image(this.effectsLayer, 0, 0)
   }
 
-  draw() {
-    if (!this.isFragShaderLoaded || !this.shader || !this.video) {
-      console.log('Skipping draw:', {
-        shaderLoaded: this.isFragShaderLoaded,
-        hasShader: !!this.shader,
-        hasVideo: !!this.video,
-      })
-      return
+  prepareLinesData({ scaledWidth, scaledHeight, x, y }) {
+    const linesArray = []
+    const count = Math.min(this.lineData.length, 600)
+
+    for (let i = 0; i < count; i++) {
+      const lineObj = this.lineData[i]
+      const coords = this.calculateLineCoordinates(lineObj, scaledWidth, scaledHeight, x, y)
+      linesArray.push(...coords)
     }
 
-    // procesar poses si es el momento
-    if (millis() - this.lastRequestTime > CONFIG.pose.requestInterval) {
-      this.requestPoses(this.video)
-      this.lastRequestTime = millis()
+    while (linesArray.length < 400) linesArray.push(0)
+    return { linesArray, count }
+  }
+
+  prepareHeadsData({ scaledWidth, scaledHeight, x, y }) {
+    const headsArray = []
+    const headCount = Math.min(this.headData.length, 50)
+
+    for (let i = 0; i < headCount; i++) {
+      const h = this.headData[i]
+      const coords = this.calculateHeadCoordinates(h, scaledWidth, scaledHeight, x, y)
+      headsArray.push(...coords)
     }
 
-    // procesar datos de pose
-    this.processPoseData()
+    return { headsArray, headCount }
+  }
 
-    // dibujar video en buffer
-    if (this.video && (this.video.loadedmetadata || this.video.elt)) {
-      this.drawVideoToBuffer()
+  calculateLineCoordinates(lineObj, scaledWidth, scaledHeight, x, y) {
+    return [
+      lineObj.start.x * scaledWidth + x,
+      lineObj.start.y * scaledHeight + y,
+      lineObj.end.x * scaledWidth + x,
+      lineObj.end.y * scaledHeight + y
+    ]
+  }
+
+  calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y) {
+    return [
+      head.x * scaledWidth + x,
+      head.y * scaledHeight + y
+    ]
+  }
+
+  addSkeletonLines(kps, virtualPoints) {
+    const { nape, shoulders } = virtualPoints
+
+    const addLine = (p1, p2, conf) => {
+      if (conf > CONFIG.pose.confidenceThreshold) {
+        this.lineData.push({
+          start: { x: p1[0], y: p1[1] },
+          end: { x: p2[0], y: p2[1] },
+          confidence: conf
+        })
+      }
     }
 
-    // calcular dimensiones
-    const dimensions = this.calculateDimensions()
+    const lines = [
+      [[kps[CONFIG.keypoints.HEAD].x, kps[CONFIG.keypoints.HEAD].y], [nape.x, nape.y], Math.min(kps[CONFIG.keypoints.HEAD].confidence, nape.conf)],
+      [[shoulders.left.x, shoulders.left.y], [kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y], Math.min(shoulders.left.conf, kps[CONFIG.keypoints.ELBOW_L].confidence)],
+      [[kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y], [kps[CONFIG.keypoints.WRIST_L].x, kps[CONFIG.keypoints.WRIST_L].y], Math.min(kps[CONFIG.keypoints.ELBOW_L].confidence, kps[CONFIG.keypoints.WRIST_L].confidence)],
+      [[shoulders.right.x, shoulders.right.y], [kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y], Math.min(shoulders.right.conf, kps[CONFIG.keypoints.ELBOW_R].confidence)],
+      [[kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y], [kps[CONFIG.keypoints.WRIST_R].x, kps[CONFIG.keypoints.WRIST_R].y], Math.min(kps[CONFIG.keypoints.ELBOW_R].confidence, kps[CONFIG.keypoints.WRIST_R].confidence)],
+      [[kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], [kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y], Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.KNEE_L].confidence)],
+      [[kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y], [kps[CONFIG.keypoints.ANKLE_L].x, kps[CONFIG.keypoints.ANKLE_L].y], Math.min(kps[CONFIG.keypoints.KNEE_L].confidence, kps[CONFIG.keypoints.ANKLE_L].confidence)],
+      [[kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y], [kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y], Math.min(kps[CONFIG.keypoints.HIP_R].confidence, kps[CONFIG.keypoints.KNEE_R].confidence)],
+      [[kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y], [kps[CONFIG.keypoints.ANKLE_R].x, kps[CONFIG.keypoints.ANKLE_R].y], Math.min(kps[CONFIG.keypoints.KNEE_R].confidence, kps[CONFIG.keypoints.ANKLE_R].confidence)],
+      [[nape.x, nape.y], [shoulders.left.x, shoulders.left.y], Math.min(nape.conf, shoulders.left.conf)],
+      [[nape.x, nape.y], [shoulders.right.x, shoulders.right.y], Math.min(nape.conf, shoulders.right.conf)],
+      [[shoulders.left.x, shoulders.left.y], [kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], Math.min(shoulders.left.conf, kps[CONFIG.keypoints.HIP_L].confidence)],
+      [[shoulders.right.x, shoulders.right.y], [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y], Math.min(shoulders.right.conf, kps[CONFIG.keypoints.HIP_R].confidence)],
+      [[kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y], Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.HIP_R].confidence)]
+    ]
 
-    // preparar datos para shader
-    const { linesArray, count } = this.prepareLinesData(dimensions)
-    const { headsArray, headCount } = this.prepareHeadsData(dimensions)
-
-    // actualizar shader
-    this.updateShader(linesArray, count, headsArray, headCount)
-
-    // dibujar efectos
-    this.drawStarLines(dimensions)
+    lines.forEach(([p1, p2, conf]) => addLine(p1, p2, conf))
   }
 }
