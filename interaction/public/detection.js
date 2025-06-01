@@ -11,6 +11,10 @@ class Detection {
     this.isFragShaderLoaded = false
     this.video = null
     this.inputSource = 'video'
+    this.pendulums = new Map()
+    this.nextId = 0
+    this.skeletonIds = new Map()
+    this.lastSkeletonPositions = new Map()
   }
 
   async init() {
@@ -45,9 +49,36 @@ class Detection {
 
   async initVideo() {
     if (this.inputSource === 'webcam') {
-      this.video = createCapture(VIDEO)
-      this.video.size(CONFIG.video.width, CONFIG.video.height)
-      this.video.hide()
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const videoDevices = devices.filter((device) => device.kind === 'videoinput')
+
+        console.log(
+          'dispositivos de video encontrados:',
+          videoDevices.map((d) => ({
+            id: d.deviceId,
+            label: d.label,
+            index: videoDevices.indexOf(d),
+          }))
+        )
+
+        if (videoDevices.length === 0) {
+          throw new Error('no se encontraron cámaras')
+        }
+
+        const constraints = {
+          video: {
+            deviceId: videoDevices[CONFIG.video.cameraIndex]?.deviceId || undefined,
+          },
+        }
+
+        console.log('usando cámara:', videoDevices[CONFIG.video.cameraIndex]?.label || 'no encontrada')
+        this.video = createCapture(VIDEO, constraints)
+        this.video.size(CONFIG.video.width, CONFIG.video.height)
+        this.video.hide()
+      } catch (error) {
+        console.error('error al inicializar la cámara:', error)
+      }
     } else {
       this.initVideoElement()
     }
@@ -96,6 +127,44 @@ class Detection {
     }
   }
 
+  calculateSkeletonId(skeleton) {
+    const kps = skeleton.keypoints
+    if (!kps || kps.length < 17) return null
+
+    const head = kps[CONFIG.keypoints.HEAD]
+    const shoulderL = kps[CONFIG.keypoints.SHOULDER_L]
+    const shoulderR = kps[CONFIG.keypoints.SHOULDER_R]
+
+    if (!head || !shoulderL || !shoulderR) return null
+
+    const centerX = (shoulderL.x + shoulderR.x) / 2
+    const centerY = (shoulderL.y + shoulderR.y) / 2
+
+    return `${Math.round(centerX * 10) / 10},${Math.round(centerY * 10) / 10}`
+  }
+
+  findClosestExistingSkeleton(newSkeleton) {
+    const newId = this.calculateSkeletonId(newSkeleton)
+    if (!newId) return null
+
+    const newCenterX = parseFloat(newId.split(',')[0])
+    const newCenterY = parseFloat(newId.split(',')[1])
+
+    let closestId = null
+    let minDistance = Infinity
+
+    for (const [id, position] of this.lastSkeletonPositions) {
+      const distance = Math.sqrt(Math.pow(newCenterX - position.x, 2) + Math.pow(newCenterY - position.y, 2))
+
+      if (distance < 0.2 && distance < minDistance) {
+        minDistance = distance
+        closestId = id
+      }
+    }
+
+    return closestId
+  }
+
   async requestPoses(video) {
     if (!video?.elt) return
 
@@ -104,6 +173,11 @@ class Detection {
       canvas.width = CONFIG.video.width
       canvas.height = CONFIG.video.height
       const ctx = canvas.getContext('2d')
+
+      if (!ctx) {
+        console.error('no se pudo obtener el contexto del canvas')
+        return
+      }
 
       if (this.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
         ctx.scale(-1, 1)
@@ -115,6 +189,11 @@ class Detection {
       }
 
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg'))
+      if (!blob) {
+        console.error('no se pudo crear el blob de la imagen')
+        return
+      }
+
       const formData = new FormData()
       formData.append('file', blob, 'webcam.jpg')
 
@@ -123,12 +202,20 @@ class Detection {
         body: formData,
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        this.skeletonData = data.skeletons || []
+      if (!response.ok) {
+        throw new Error(`error en la petición: ${response.status}`)
       }
+
+      const data = await response.json()
+      if (!data?.skeletons) {
+        console.warn('no se recibieron datos de esqueletos')
+        return
+      }
+
+      this.skeletonData = data.skeletons
     } catch (error) {
-      console.error('Error:', error)
+      console.error('error al procesar poses:', error)
+      this.skeletonData = []
     }
   }
 
@@ -151,33 +238,29 @@ class Detection {
   }
 
   processHead(kps) {
-    if (kps[CONFIG.keypoints.HEAD].confidence > CONFIG.pose.confidenceThreshold &&
-        kps[CONFIG.keypoints.SHOULDER_L].confidence > CONFIG.pose.confidenceThreshold && 
-        kps[CONFIG.keypoints.SHOULDER_R].confidence > CONFIG.pose.confidenceThreshold) {
-      const shoulderDistance = dist(
-        kps[CONFIG.keypoints.SHOULDER_L].x,
-        kps[CONFIG.keypoints.SHOULDER_L].y,
-        kps[CONFIG.keypoints.SHOULDER_R].x,
-        kps[CONFIG.keypoints.SHOULDER_R].y
-      )
+    if (
+      kps[CONFIG.keypoints.HEAD].confidence > CONFIG.pose.confidenceThreshold &&
+      kps[CONFIG.keypoints.SHOULDER_L].confidence > CONFIG.pose.confidenceThreshold &&
+      kps[CONFIG.keypoints.SHOULDER_R].confidence > CONFIG.pose.confidenceThreshold
+    ) {
+      const shoulderDistance = dist(kps[CONFIG.keypoints.SHOULDER_L].x, kps[CONFIG.keypoints.SHOULDER_L].y, kps[CONFIG.keypoints.SHOULDER_R].x, kps[CONFIG.keypoints.SHOULDER_R].y)
       this.headData.push({
         x: kps[CONFIG.keypoints.HEAD].x,
         y: kps[CONFIG.keypoints.HEAD].y,
-        shoulderDistance
+        shoulderDistance,
       })
     }
   }
 
   calculateVirtualPoints(kps) {
-    if (kps[CONFIG.keypoints.SHOULDER_L].confidence <= CONFIG.pose.confidenceThreshold || 
-        kps[CONFIG.keypoints.SHOULDER_R].confidence <= CONFIG.pose.confidenceThreshold) {
+    if (kps[CONFIG.keypoints.SHOULDER_L].confidence <= CONFIG.pose.confidenceThreshold || kps[CONFIG.keypoints.SHOULDER_R].confidence <= CONFIG.pose.confidenceThreshold) {
       return null
     }
 
     const nape = {
       x: (kps[CONFIG.keypoints.SHOULDER_L].x + kps[CONFIG.keypoints.SHOULDER_R].x) / 2,
       y: (kps[CONFIG.keypoints.SHOULDER_L].y + kps[CONFIG.keypoints.SHOULDER_R].y) / 2,
-      conf: Math.min(kps[CONFIG.keypoints.SHOULDER_L].confidence, kps[CONFIG.keypoints.SHOULDER_R].confidence)
+      conf: Math.min(kps[CONFIG.keypoints.SHOULDER_L].confidence, kps[CONFIG.keypoints.SHOULDER_R].confidence),
     }
 
     if (kps[CONFIG.keypoints.HEAD].confidence > CONFIG.pose.confidenceThreshold) {
@@ -188,8 +271,8 @@ class Detection {
       nape,
       shoulders: {
         left: this.createShoulderPoint(nape, kps[CONFIG.keypoints.SHOULDER_L]),
-        right: this.createShoulderPoint(nape, kps[CONFIG.keypoints.SHOULDER_R])
-      }
+        right: this.createShoulderPoint(nape, kps[CONFIG.keypoints.SHOULDER_R]),
+      },
     }
   }
 
@@ -198,14 +281,14 @@ class Detection {
       ? {
           x: (nape.x + shoulder.x) / 2,
           y: (nape.y + shoulder.y) / 2,
-          conf: Math.min(nape.conf, shoulder.confidence)
+          conf: Math.min(nape.conf, shoulder.confidence),
         }
       : null
   }
 
   draw() {
     if (!this.isFragShaderLoaded || !this.shader || !this.video) {
-      console.log('Skipping draw:', {
+      console.warn('no se puede dibujar:', {
         shaderLoaded: this.isFragShaderLoaded,
         hasShader: !!this.shader,
         hasVideo: !!this.video,
@@ -229,6 +312,8 @@ class Detection {
 
     this.updateShader(linesArray, count, headsArray, headCount)
     this.drawStarLines(dimensions)
+    this.updatePendulums(dimensions)
+    this.drawPendulums()
   }
 
   calculateDimensions() {
@@ -267,9 +352,9 @@ class Detection {
         const angle = (2 * (i * PI)) / N
         const endX = coords[0] + cos(angle) * radius
         const endY = coords[1] + sin(angle) * radius
-        const startX = coords[0] + cos(angle) * (radius * 0.85)
-        const startY = coords[1] + sin(angle) * (radius * 0.85)
-        
+        const startX = coords[0] + cos(angle) * (radius * 0.6)
+        const startY = coords[1] + sin(angle) * (radius * 0.6)
+
         this.effectsLayer.strokeWeight(1.5)
         this.effectsLayer.line(startX, startY, endX, endY)
       }
@@ -308,19 +393,11 @@ class Detection {
   }
 
   calculateLineCoordinates(lineObj, scaledWidth, scaledHeight, x, y) {
-    return [
-      lineObj.start.x * scaledWidth + x,
-      lineObj.start.y * scaledHeight + y,
-      lineObj.end.x * scaledWidth + x,
-      lineObj.end.y * scaledHeight + y
-    ]
+    return [lineObj.start.x * scaledWidth + x, lineObj.start.y * scaledHeight + y, lineObj.end.x * scaledWidth + x, lineObj.end.y * scaledHeight + y]
   }
 
   calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y) {
-    return [
-      head.x * scaledWidth + x,
-      head.y * scaledHeight + y
-    ]
+    return [head.x * scaledWidth + x, head.y * scaledHeight + y]
   }
 
   addSkeletonLines(kps, virtualPoints) {
@@ -331,28 +408,130 @@ class Detection {
         this.lineData.push({
           start: { x: p1[0], y: p1[1] },
           end: { x: p2[0], y: p2[1] },
-          confidence: conf
+          confidence: conf,
         })
       }
     }
 
     const lines = [
       [[kps[CONFIG.keypoints.HEAD].x, kps[CONFIG.keypoints.HEAD].y], [nape.x, nape.y], Math.min(kps[CONFIG.keypoints.HEAD].confidence, nape.conf)],
-      [[shoulders.left.x, shoulders.left.y], [kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y], Math.min(shoulders.left.conf, kps[CONFIG.keypoints.ELBOW_L].confidence)],
-      [[kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y], [kps[CONFIG.keypoints.WRIST_L].x, kps[CONFIG.keypoints.WRIST_L].y], Math.min(kps[CONFIG.keypoints.ELBOW_L].confidence, kps[CONFIG.keypoints.WRIST_L].confidence)],
-      [[shoulders.right.x, shoulders.right.y], [kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y], Math.min(shoulders.right.conf, kps[CONFIG.keypoints.ELBOW_R].confidence)],
-      [[kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y], [kps[CONFIG.keypoints.WRIST_R].x, kps[CONFIG.keypoints.WRIST_R].y], Math.min(kps[CONFIG.keypoints.ELBOW_R].confidence, kps[CONFIG.keypoints.WRIST_R].confidence)],
-      [[kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], [kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y], Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.KNEE_L].confidence)],
-      [[kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y], [kps[CONFIG.keypoints.ANKLE_L].x, kps[CONFIG.keypoints.ANKLE_L].y], Math.min(kps[CONFIG.keypoints.KNEE_L].confidence, kps[CONFIG.keypoints.ANKLE_L].confidence)],
-      [[kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y], [kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y], Math.min(kps[CONFIG.keypoints.HIP_R].confidence, kps[CONFIG.keypoints.KNEE_R].confidence)],
-      [[kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y], [kps[CONFIG.keypoints.ANKLE_R].x, kps[CONFIG.keypoints.ANKLE_R].y], Math.min(kps[CONFIG.keypoints.KNEE_R].confidence, kps[CONFIG.keypoints.ANKLE_R].confidence)],
+      [
+        [shoulders.left.x, shoulders.left.y],
+        [kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y],
+        Math.min(shoulders.left.conf, kps[CONFIG.keypoints.ELBOW_L].confidence),
+      ],
+      [
+        [kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y],
+        [kps[CONFIG.keypoints.WRIST_L].x, kps[CONFIG.keypoints.WRIST_L].y],
+        Math.min(kps[CONFIG.keypoints.ELBOW_L].confidence, kps[CONFIG.keypoints.WRIST_L].confidence),
+      ],
+      [
+        [shoulders.right.x, shoulders.right.y],
+        [kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y],
+        Math.min(shoulders.right.conf, kps[CONFIG.keypoints.ELBOW_R].confidence),
+      ],
+      [
+        [kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y],
+        [kps[CONFIG.keypoints.WRIST_R].x, kps[CONFIG.keypoints.WRIST_R].y],
+        Math.min(kps[CONFIG.keypoints.ELBOW_R].confidence, kps[CONFIG.keypoints.WRIST_R].confidence),
+      ],
+      [
+        [kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y],
+        [kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y],
+        Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.KNEE_L].confidence),
+      ],
+      [
+        [kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y],
+        [kps[CONFIG.keypoints.ANKLE_L].x, kps[CONFIG.keypoints.ANKLE_L].y],
+        Math.min(kps[CONFIG.keypoints.KNEE_L].confidence, kps[CONFIG.keypoints.ANKLE_L].confidence),
+      ],
+      [
+        [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y],
+        [kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y],
+        Math.min(kps[CONFIG.keypoints.HIP_R].confidence, kps[CONFIG.keypoints.KNEE_R].confidence),
+      ],
+      [
+        [kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y],
+        [kps[CONFIG.keypoints.ANKLE_R].x, kps[CONFIG.keypoints.ANKLE_R].y],
+        Math.min(kps[CONFIG.keypoints.KNEE_R].confidence, kps[CONFIG.keypoints.ANKLE_R].confidence),
+      ],
       [[nape.x, nape.y], [shoulders.left.x, shoulders.left.y], Math.min(nape.conf, shoulders.left.conf)],
       [[nape.x, nape.y], [shoulders.right.x, shoulders.right.y], Math.min(nape.conf, shoulders.right.conf)],
       [[shoulders.left.x, shoulders.left.y], [kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], Math.min(shoulders.left.conf, kps[CONFIG.keypoints.HIP_L].confidence)],
-      [[shoulders.right.x, shoulders.right.y], [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y], Math.min(shoulders.right.conf, kps[CONFIG.keypoints.HIP_R].confidence)],
-      [[kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y], Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.HIP_R].confidence)]
+      [
+        [shoulders.right.x, shoulders.right.y],
+        [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y],
+        Math.min(shoulders.right.conf, kps[CONFIG.keypoints.HIP_R].confidence),
+      ],
+      [
+        [kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y],
+        [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y],
+        Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.HIP_R].confidence),
+      ],
     ]
 
     lines.forEach(([p1, p2, conf]) => addLine(p1, p2, conf))
+  }
+
+  updatePendulums({ scaledWidth, scaledHeight, x, y }) {
+    if (!this.skeletonData?.length) return
+
+    const currentPendulums = new Map()
+
+    // guardar los péndulos actuales
+    for (const [id, pendulum] of this.pendulums) {
+      if (pendulum) currentPendulums.set(id, pendulum)
+    }
+
+    this.pendulums.clear()
+
+    for (const skeleton of this.skeletonData) {
+      const kps = skeleton.keypoints
+      if (!kps?.length || kps.length < 17) continue
+
+      const virtualPoints = this.calculateVirtualPoints(kps)
+      if (!virtualPoints) continue
+
+      const coords = [virtualPoints.nape.x * scaledWidth + x, virtualPoints.nape.y * scaledHeight + y]
+
+      // calcular la distancia entre hombros en píxeles
+      const shoulderDistance = dist(
+        kps[CONFIG.keypoints.SHOULDER_L].x * scaledWidth + x,
+        kps[CONFIG.keypoints.SHOULDER_L].y * scaledHeight + y,
+        kps[CONFIG.keypoints.SHOULDER_R].x * scaledWidth + x,
+        kps[CONFIG.keypoints.SHOULDER_R].y * scaledHeight + y
+      )
+
+      // validar que el track_id sea válido
+      const trackId = skeleton.track_id
+      if (typeof trackId !== 'number' || trackId < 0) continue
+
+      // calcular la longitud del péndulo basada en la distancia entre hombros
+      const length = shoulderDistance * 0.6
+
+      let pendulum = currentPendulums.get(trackId)
+      if (!pendulum) {
+        pendulum = new Pendulum(length)
+      } else {
+        // actualizar solo la longitud y el damping
+        pendulum.length = length
+      }
+
+      pendulum.update({ x: coords[0], y: coords[1] })
+      this.pendulums.set(trackId, pendulum)
+    }
+  }
+
+  drawPendulums() {
+    this.effectsLayer.push()
+    this.effectsLayer.stroke(255, 255, 255, 100)
+    this.effectsLayer.strokeWeight(2)
+    this.effectsLayer.noFill()
+
+    for (const pendulum of this.pendulums.values()) {
+      pendulum.draw()
+    }
+
+    this.effectsLayer.pop()
   }
 }

@@ -3,8 +3,9 @@ const CONFIG = {
   video: {
     width: 1920,
     height: 1080,
-    path: '/assets/videos/demo-1.mp4',
+    path: '/assets/videos/demo-7.mp4',
     isWebcamFlipped: true,
+    cameraIndex: 0
   },
   pose: {
     endpoint: 'http://localhost:8000/detect',

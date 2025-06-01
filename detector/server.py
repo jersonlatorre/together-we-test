@@ -36,6 +36,8 @@ model.max_det = 10
 TARGET_WIDTH = 640
 CONFIDENCE_THRESHOLD = 0.3
 
+# inicializar el tracker
+tracker = None
 
 class Point(BaseModel):
     x: float
@@ -50,6 +52,7 @@ class KeyPoint(BaseModel):
 
 class Skeleton(BaseModel):
     keypoints: List[KeyPoint]
+    track_id: int  # añadimos el id de tracking
 
 
 class PoseResponse(BaseModel):
@@ -60,6 +63,8 @@ class PoseResponse(BaseModel):
 
 @app.post("/detect", response_model=PoseResponse)
 async def detect_poses(file: UploadFile = File(...)):
+    global tracker
+    
     # leer imagen
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
@@ -73,8 +78,8 @@ async def detect_poses(file: UploadFile = File(...)):
     # redimensionar para procesamiento
     frame_resized = cv2.resize(frame, (TARGET_WIDTH, new_height))
 
-    # detectar poses
-    results = model(
+    # detectar poses con tracking
+    results = model.track(
         frame_resized,
         device=device,
         iou=0.45,
@@ -82,6 +87,7 @@ async def detect_poses(file: UploadFile = File(...)):
         augment=False,
         max_det=30,
         verbose=False,
+        persist=True  # mantiene el tracking entre frames
     )
 
     # procesar resultados
@@ -91,7 +97,7 @@ async def detect_poses(file: UploadFile = File(...)):
     if len(results) > 0 and results[0].keypoints is not None:
         for result in results:
             if result.keypoints is not None:
-                for keypoints in result.keypoints.data:
+                for i, keypoints in enumerate(result.keypoints.data):
                     if len(keypoints) > 0:
                         keypoints_np = keypoints.cpu().numpy()
                         # Procesar keypoints
@@ -106,10 +112,13 @@ async def detect_poses(file: UploadFile = File(...)):
                             y = max(0.001, min(0.999, y))
                             kps.append(KeyPoint(x=x, y=y, confidence=confidence))
                         
-                        # Agregar el esqueleto a la lista
-                        skeletons.append(Skeleton(keypoints=kps))
+                        # obtener el id de tracking
+                        track_id = int(result.boxes.id[i].item()) if result.boxes.id is not None else -1
+                        
+                        # Agregar el esqueleto a la lista con su id de tracking
+                        skeletons.append(Skeleton(keypoints=kps, track_id=track_id))
 
-    # Devolver los esqueletos en crudo
+    # Devolver los esqueletos con sus ids de tracking
     return PoseResponse(skeletons=skeletons, width=TARGET_WIDTH, height=new_height)
 
 
