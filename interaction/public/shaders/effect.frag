@@ -32,7 +32,7 @@ float segmentGlow(vec2 p, vec2 a, vec2 b, float radius, float softness) {
   vec2 ba = b - a;
   float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
   float dist = length(pa - ba * h) - radius;
-  return exp(-pow(dist / softness, 0.5));
+  return exp(-pow(dist / softness, 0.8));
 }
 
 void main() {
@@ -51,7 +51,7 @@ void main() {
     vec2 end = vec2(lines[i * 4 + 2], lines[i * 4 + 3]);
     glow += segmentGlow(pixelCoord, start, end, 0.0, softness);
   }
-  glow = min(glow, 1.0);
+  glow = min(glow, 10.5);
 
   // calcular glow de cabezas
   float headGlow = 0.0;
@@ -63,9 +63,9 @@ void main() {
     float dist = length(pixelCoord - headPos);
     headGlow += HEAD_GLOW_STRENGTH / (dist + HEAD_GLOW_MIN_DIST);
     // círculo interior más pequeño
-    innerHeadGlow += HEAD_GLOW_STRENGTH / (dist * 2.0 + HEAD_GLOW_MIN_DIST);
+    innerHeadGlow += HEAD_GLOW_STRENGTH / (dist * 8.0 + HEAD_GLOW_MIN_DIST);
   }
-  headGlow = min(headGlow, 1.0);
+  headGlow = min(headGlow, 0.5);
   innerHeadGlow = min(innerHeadGlow, 1.0);
 
   // mezclar colores
