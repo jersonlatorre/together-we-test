@@ -9,5 +9,5 @@ async function setup() {
 }
 
 function draw() {
-  detection.draw()  
+  detection.draw()
 }

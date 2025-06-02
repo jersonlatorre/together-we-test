@@ -5,7 +5,7 @@ const CONFIG = {
     height: 1080,
     path: '/assets/videos/demo-7.mp4',
     isWebcamFlipped: true,
-    cameraIndex: 0
+    cameraIndex: 0,
   },
   pose: {
     endpoint: 'http://localhost:8000/detect',
@@ -31,4 +31,4 @@ const CONFIG = {
     ANKLE_L: 15,
     ANKLE_R: 16,
   },
-} 
+}

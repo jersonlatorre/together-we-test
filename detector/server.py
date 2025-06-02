@@ -39,6 +39,7 @@ CONFIDENCE_THRESHOLD = 0.3
 # inicializar el tracker
 tracker = None
 
+
 class Point(BaseModel):
     x: float
     y: float
@@ -64,7 +65,7 @@ class PoseResponse(BaseModel):
 @app.post("/detect", response_model=PoseResponse)
 async def detect_poses(file: UploadFile = File(...)):
     global tracker
-    
+
     # leer imagen
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
@@ -87,7 +88,7 @@ async def detect_poses(file: UploadFile = File(...)):
         augment=False,
         max_det=30,
         verbose=False,
-        persist=True  # mantiene el tracking entre frames
+        persist=True,  # mantiene el tracking entre frames
     )
 
     # procesar resultados
@@ -111,10 +112,14 @@ async def detect_poses(file: UploadFile = File(...)):
                             x = max(0.001, min(0.999, x))
                             y = max(0.001, min(0.999, y))
                             kps.append(KeyPoint(x=x, y=y, confidence=confidence))
-                        
+
                         # obtener el id de tracking
-                        track_id = int(result.boxes.id[i].item()) if result.boxes.id is not None else -1
-                        
+                        track_id = (
+                            int(result.boxes.id[i].item())
+                            if result.boxes.id is not None
+                            else -1
+                        )
+
                         # Agregar el esqueleto a la lista con su id de tracking
                         skeletons.append(Skeleton(keypoints=kps, track_id=track_id))
 
