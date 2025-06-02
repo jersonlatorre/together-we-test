@@ -2,6 +2,7 @@
   "name": "interaction-p5js",
   "version": "1.0.0",
   "description": "proyecto básico con p5js y osc",
+  "type": "module",
   "main": "src/server.js",
   "scripts": {
     "server": "node src/server.js",

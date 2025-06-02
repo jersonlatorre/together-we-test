@@ -25,7 +25,7 @@ app.add_middleware(
 
 # configuración del modelo
 device = "mps" if torch.backends.mps.is_available() else "cpu"
-model = YOLO("models/yolo11l-pose.pt")
+model = YOLO("models/yolov8x-pose.pt")
 model.to(device)
 model.conf = 0.3
 model.iou = 0.45
