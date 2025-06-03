@@ -10,7 +10,7 @@ class Detection {
     this.fragShader = ''
     this.isFragShaderLoaded = false
     this.video = null
-    this.inputSource = 'video'
+    this.inputSource = 'webcam'
     this.pendulums = new Map()
     this.nextId = 0
     this.skeletonIds = new Map()
@@ -341,21 +341,21 @@ class Detection {
     this.effectsLayer.clear()
     this.effectsLayer.push()
     this.effectsLayer.noFill()
-    this.effectsLayer.stroke(255, 255, 255)
+    this.effectsLayer.stroke(255, 255, 255, 100)
 
     for (const head of this.headData) {
       const coords = this.calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y)
-      const radius = head.shoulderDistance * scaledWidth * 0.4
+      const radius = head.shoulderDistance * scaledWidth * 0.3
 
       let N = 12
       for (let i = 0; i < N; i++) {
         const angle = (2 * (i * PI)) / N
-        const endX = coords[0] + cos(angle) * radius
-        const endY = coords[1] + sin(angle) * radius
-        const startX = coords[0] + cos(angle) * (radius * 0.6)
-        const startY = coords[1] + sin(angle) * (radius * 0.6)
+        const endX = coords[0] + cos(angle) * radius + random(-1, 1) * radius * 0.025
+        const endY = coords[1] + sin(angle) * radius + random(-1, 1) * radius * 0.025
+        const startX = coords[0] + cos(angle) * (radius * 0.6) + random(-1, 1) * radius * 0.025
+        const startY = coords[1] + sin(angle) * (radius * 0.6) + random(-1, 1) * radius * 0.025
 
-        this.effectsLayer.strokeWeight(1.5)
+        this.effectsLayer.strokeWeight(sqrt(radius) * 0.3)
         this.effectsLayer.line(startX, startY, endX, endY)
       }
     }
@@ -507,7 +507,7 @@ class Detection {
       if (typeof trackId !== 'number' || trackId < 0) continue
 
       // calcular la longitud del péndulo basada en la distancia entre hombros
-      const length = shoulderDistance * 0.6
+      const length = shoulderDistance * 0.4
 
       let pendulum = currentPendulums.get(trackId)
       if (!pendulum) {

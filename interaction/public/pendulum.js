@@ -1,7 +1,7 @@
 class Pendulum {
   constructor(length) {
     this.length = length
-    this.damping = 0.5
+    this.damping = 0.9
     this.gravity = 8
     this.anchor = { x: 0, y: 0 }
     this.bob = { x: 0, y: 0 }
@@ -52,22 +52,25 @@ class Pendulum {
   }
 
   draw() {
-    this.points = Array(10)
-      .fill(0)
-      .map((_, i) => ({ x: random(-1, 1), y: random(-1, 1) }))
+    // this.points = Array(10)
+    //   .fill(0)
+    //   .map((_, i) => ({ x: random(-1, 1), y: random(-1, 1) }))
 
-    noFill()
-    stroke('white')
-    // strokeWeight(this.length * 0.008)
-    strokeWeight(2)
-    line(this.anchor.x, this.anchor.y, this.bob.x, this.bob.y)
+    // noFill()
+    // stroke('white')
+    // strokeWeight(2)
+    // line(this.anchor.x, this.anchor.y, this.bob.x, this.bob.y)
 
-    stroke('tomato')
-    strokeWeight(4)
-    beginShape()
-    for (const point of this.points) {
-      splineVertex(this.bob.x + point.x * this.length * 0.2, this.bob.y + point.y * this.length * 0.2)
-    }
-    endShape()
+    // stroke('tomato')
+    // strokeWeight(4)
+    // beginShape()
+    // for (const point of this.points) {
+    //   splineVertex(this.bob.x + point.x * this.length * 0.2, this.bob.y + point.y * this.length * 0.2)
+    // }
+    // endShape()
+
+    noStroke()
+    fill('#5555aa88')
+    circle(this.bob.x, this.bob.y, this.length * 0.5)
   }
 }

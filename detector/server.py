@@ -5,7 +5,7 @@ import numpy as np
 from ultralytics import YOLO
 import torch
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List
 import logging
 
 # configurar logging
