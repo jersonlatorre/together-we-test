@@ -18,16 +18,9 @@ cd together-we-test
 
 ## Uso
 
-1. Primero, ejecutar el detector de poses:
+Ejecutar el sistema:
 
 ```bash
-./run-detector.bat # en windows
-./run-detector.sh # en linux o macos
-```
-
-2. Luego, inicia el sistema de interacción:
-
-```bash
-./run-interaction.bat # en windows
-./run-interaction.sh # en linux o macos
+./run.bat # en windows
+./run.sh # en linux o macos
 ```
