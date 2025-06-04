@@ -4,44 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Together We</title>
-    <script src="https://cdn.jsdelivr.net/npm/p5@2.0.2/lib/p5.min.js"></script>
-    <script src="config.js"></script>
-    <script src="detection.js"></script>
-    <script src="pendulum.js"></script>
-    <script src="sketch.js"></script>
+    <script src="lib/p5.min.js"></script>
+    <script src="src/config.js"></script>
+    <script src="src/detection.js"></script>
+    <script src="src/pendulum.js"></script>
+    <script src="src/main.js"></script>
     <style>
       body {
         margin: 0;
         padding: 0;
         overflow: hidden;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        display: grid;
+        place-items: center;
         min-height: 100vh;
-        background: #222;
+        background: #000;
       }
       canvas {
         display: block;
-      }
-      .start-button {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: #4caf50;
-        color: white;
-        padding: 15px 32px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 16px;
-        margin: 4px 2px;
-        cursor: pointer;
-        border-radius: 4px;
-        z-index: 100;
-      }
-      .hidden {
-        display: none;
       }
     </style>
   </head>

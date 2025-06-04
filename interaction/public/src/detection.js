@@ -17,8 +17,8 @@ class Detection {
 
     // input
     this.video = null
-    this.inputSource = 'video'
-    // this.inputSource = 'webcam'
+    // this.inputSource = 'video'
+    this.inputSource = 'webcam'
 
     // pendulums
     this.pendulums = new Map()
@@ -56,9 +56,7 @@ class Detection {
   }
 
   async initShader() {
-    this.fragShader = await loadStrings('shaders/effect.frag')
-    this.fragShader = this.fragShader.join('\n')
-
+    this.fragShader = (await loadStrings('shaders/effect.frag')).join('\n')
     this.effectsLayer = createGraphics(windowWidth, windowHeight)
     this.videoBuffer = createGraphics(CONFIG.video.width, CONFIG.video.height)
 
@@ -75,43 +73,43 @@ class Detection {
 
   async initVideo() {
     if (this.inputSource === 'webcam') {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices()
-        const videoDevices = devices.filter((device) => device.kind === 'videoinput')
-
-        console.log(
-          'dispositivos de video encontrados:',
-          videoDevices.map((d) => ({
-            id: d.deviceId,
-            label: d.label,
-            index: videoDevices.indexOf(d),
-          }))
-        )
-
-        if (videoDevices.length === 0) {
-          throw new Error('no se encontraron cámaras')
-        }
-
-        const constraints = {
-          video: {
-            deviceId: videoDevices[CONFIG.video.cameraIndex]?.deviceId || undefined,
-          },
-        }
-
-        console.log('usando cámara:', videoDevices[CONFIG.video.cameraIndex]?.label || 'no encontrada')
-        this.video = createCapture(VIDEO, constraints)
-        this.video.size(CONFIG.video.width, CONFIG.video.height)
-        this.video.hide()
-      } catch (error) {
-        console.error('error al inicializar la cámara:', error)
-      }
+      await this.initWebcam()
     } else {
       this.initVideoElement()
     }
   }
 
+  async initWebcam() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const videoDevices = devices.filter((device) => device.kind === 'videoinput')
+
+      console.log(
+        'dispositivos de video encontrados:',
+        videoDevices.map((d, i) => ({ id: d.deviceId, label: d.label, index: i }))
+      )
+
+      if (videoDevices.length === 0) {
+        throw new Error('no se encontraron cámaras')
+      }
+
+      const constraints = {
+        video: {
+          deviceId: videoDevices[CONFIG.video.cameraIndex]?.deviceId || undefined,
+        },
+      }
+
+      console.log('usando cámara:', videoDevices[CONFIG.video.cameraIndex]?.label || 'no encontrada')
+      this.video = createCapture(VIDEO, constraints)
+      this.video.size(CONFIG.video.width, CONFIG.video.height)
+      this.video.hide()
+    } catch (error) {
+      console.error('error al inicializar la cámara:', error)
+    }
+  }
+
   initVideoElement() {
-    let videoElement = document.createElement('video')
+    const videoElement = document.createElement('video')
     videoElement.src = CONFIG.video.path
     videoElement.muted = true
     videoElement.loop = true
@@ -120,12 +118,12 @@ class Detection {
     this.video = {
       elt: videoElement,
       _playing: false,
-      size: function (w, h) {
-        this.elt.width = w
-        this.elt.height = h
+      size: (w, h) => {
+        videoElement.width = w
+        videoElement.height = h
       },
-      hide: function () {
-        this.elt.style.display = 'none'
+      hide: () => {
+        videoElement.style.display = 'none'
       },
     }
 
@@ -215,72 +213,62 @@ class Detection {
 
     for (const skeleton of this.skeletonData) {
       const kps = skeleton.keypoints
-      if (!kps || kps.length < 17) continue
+      if (!kps) continue
 
-      this.processHead(kps)
-      const virtualPoints = this.calculateVirtualPoints(kps)
-      if (virtualPoints) {
-        this.addSkeletonLines(kps, virtualPoints)
-      }
-    }
-  }
+      const { HEAD, SHOULDER_L, SHOULDER_R } = this.KEYPOINTS
+      if (
+        kps[HEAD]?.confidence <= this.CONFIDENCE_THRESHOLD ||
+        kps[SHOULDER_L]?.confidence <= this.CONFIDENCE_THRESHOLD ||
+        kps[SHOULDER_R]?.confidence <= this.CONFIDENCE_THRESHOLD
+      )
+        continue
 
-  processHead(kps) {
-    if (
-      kps[this.KEYPOINTS.HEAD].confidence > this.CONFIDENCE_THRESHOLD &&
-      kps[this.KEYPOINTS.SHOULDER_L].confidence > this.CONFIDENCE_THRESHOLD &&
-      kps[this.KEYPOINTS.SHOULDER_R].confidence > this.CONFIDENCE_THRESHOLD
-    ) {
-      const shoulderDistance = dist(kps[this.KEYPOINTS.SHOULDER_L].x, kps[this.KEYPOINTS.SHOULDER_L].y, kps[this.KEYPOINTS.SHOULDER_R].x, kps[this.KEYPOINTS.SHOULDER_R].y)
+      const shoulderDistance = dist(kps[SHOULDER_L].x, kps[SHOULDER_L].y, kps[SHOULDER_R].x, kps[SHOULDER_R].y)
+
       this.headData.push({
-        x: kps[this.KEYPOINTS.HEAD].x,
-        y: kps[this.KEYPOINTS.HEAD].y,
+        x: kps[HEAD].x,
+        y: kps[HEAD].y,
         shoulderDistance,
       })
+
+      const virtualPoints = this.calculateVirtualPoints(kps)
+      this.addSkeletonLines(kps, virtualPoints)
     }
   }
 
   calculateVirtualPoints(kps) {
-    if (kps[this.KEYPOINTS.SHOULDER_L].confidence <= this.CONFIDENCE_THRESHOLD || kps[this.KEYPOINTS.SHOULDER_R].confidence <= this.CONFIDENCE_THRESHOLD) {
-      return null
-    }
+    const { HEAD, SHOULDER_L, SHOULDER_R } = this.KEYPOINTS
 
     const nape = {
-      x: (kps[this.KEYPOINTS.SHOULDER_L].x + kps[this.KEYPOINTS.SHOULDER_R].x) / 2,
-      y: (kps[this.KEYPOINTS.SHOULDER_L].y + kps[this.KEYPOINTS.SHOULDER_R].y) / 2,
-      conf: Math.min(kps[this.KEYPOINTS.SHOULDER_L].confidence, kps[this.KEYPOINTS.SHOULDER_R].confidence),
+      x: (kps[SHOULDER_L].x + kps[SHOULDER_R].x) / 2,
+      y: (kps[SHOULDER_L].y + kps[SHOULDER_R].y) / 2,
+      conf: Math.min(kps[SHOULDER_L].confidence, kps[SHOULDER_R].confidence),
     }
 
-    if (kps[this.KEYPOINTS.HEAD].confidence > this.CONFIDENCE_THRESHOLD) {
-      nape.y = nape.y * 0.8 + kps[this.KEYPOINTS.HEAD].y * 0.2
+    if (kps[HEAD].confidence > this.CONFIDENCE_THRESHOLD) {
+      nape.y = nape.y * 0.8 + kps[HEAD].y * 0.2
     }
 
     return {
       nape,
       shoulders: {
-        left: this.createShoulderPoint(nape, kps[this.KEYPOINTS.SHOULDER_L]),
-        right: this.createShoulderPoint(nape, kps[this.KEYPOINTS.SHOULDER_R]),
+        left: {
+          x: (nape.x + kps[SHOULDER_L].x) / 2,
+          y: (nape.y + kps[SHOULDER_L].y) / 2,
+          conf: Math.min(nape.conf, kps[SHOULDER_L].confidence),
+        },
+        right: {
+          x: (nape.x + kps[SHOULDER_R].x) / 2,
+          y: (nape.y + kps[SHOULDER_R].y) / 2,
+          conf: Math.min(nape.conf, kps[SHOULDER_R].confidence),
+        },
       },
     }
   }
 
-  createShoulderPoint(nape, shoulder) {
-    return shoulder.confidence > this.CONFIDENCE_THRESHOLD
-      ? {
-          x: (nape.x + shoulder.x) / 2,
-          y: (nape.y + shoulder.y) / 2,
-          conf: Math.min(nape.conf, shoulder.confidence),
-        }
-      : null
-  }
-
   draw() {
     if (!this.isFragShaderLoaded || !this.shader || !this.video) {
-      console.warn('no se puede dibujar:', {
-        shaderLoaded: this.isFragShaderLoaded,
-        hasShader: !!this.shader,
-        hasVideo: !!this.video,
-      })
+      console.warn('no se puede dibujar')
       return
     }
 
@@ -330,18 +318,24 @@ class Detection {
     this.effectsLayer.push()
     this.effectsLayer.noFill()
     this.effectsLayer.stroke(255, 255, 255, 100)
+    const N = 12
+    const STAR_SIZE_RATIO = 0.25
+    const STAR_LINE_START_RATIO = 0.8
 
     for (const head of this.headData) {
       const coords = this.calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y)
-      const radius = head.shoulderDistance * scaledWidth * 0.3
+      const radius = head.shoulderDistance * scaledWidth * STAR_SIZE_RATIO
 
-      let N = 12
       for (let i = 0; i < N; i++) {
         const angle = (2 * (i * PI)) / N
-        const endX = coords[0] + cos(angle) * radius + random(-1, 1) * radius * 0.025
-        const endY = coords[1] + sin(angle) * radius + random(-1, 1) * radius * 0.025
-        const startX = coords[0] + cos(angle) * (radius * 0.6) + random(-1, 1) * radius * 0.025
-        const startY = coords[1] + sin(angle) * (radius * 0.6) + random(-1, 1) * radius * 0.025
+        const cosAngle = cos(angle)
+        const sinAngle = sin(angle)
+        const randomOffset = random(-1, 1) * radius * 0.025
+
+        const endX = coords[0] + cosAngle * radius + randomOffset
+        const endY = coords[1] + sinAngle * radius + randomOffset
+        const startX = coords[0] + cosAngle * (radius * STAR_LINE_START_RATIO) + randomOffset
+        const startY = coords[1] + sinAngle * (radius * STAR_LINE_START_RATIO) + randomOffset
 
         this.effectsLayer.strokeWeight(sqrt(radius) * 0.3)
         this.effectsLayer.line(startX, startY, endX, endY)
@@ -363,6 +357,7 @@ class Detection {
       linesArray.push(...coords)
     }
 
+    // Asegurar que el array tenga un tamaño mínimo para el shader
     while (linesArray.length < 400) linesArray.push(0)
     return { linesArray, count }
   }
@@ -390,8 +385,55 @@ class Detection {
 
   addSkeletonLines(kps, virtualPoints) {
     const { nape, shoulders } = virtualPoints
+    const KP = this.KEYPOINTS
 
-    const addLine = (p1, p2, conf) => {
+    // Definir líneas como pares de puntos y su confianza
+    const lines = [
+      // cabeza a nuca
+      [[kps[KP.HEAD].x, kps[KP.HEAD].y], [nape.x, nape.y], Math.min(kps[KP.HEAD].confidence, nape.conf)],
+
+      // hombro izquierdo a codo izquierdo
+      [[shoulders.left.x, shoulders.left.y], [kps[KP.ELBOW_L].x, kps[KP.ELBOW_L].y], Math.min(shoulders.left.conf, kps[KP.ELBOW_L].confidence)],
+
+      // codo izquierdo a muñeca izquierda
+      [[kps[KP.ELBOW_L].x, kps[KP.ELBOW_L].y], [kps[KP.WRIST_L].x, kps[KP.WRIST_L].y], Math.min(kps[KP.ELBOW_L].confidence, kps[KP.WRIST_L].confidence)],
+
+      // hombro derecho a codo derecho
+      [[shoulders.right.x, shoulders.right.y], [kps[KP.ELBOW_R].x, kps[KP.ELBOW_R].y], Math.min(shoulders.right.conf, kps[KP.ELBOW_R].confidence)],
+
+      // codo derecho a muñeca derecha
+      [[kps[KP.ELBOW_R].x, kps[KP.ELBOW_R].y], [kps[KP.WRIST_R].x, kps[KP.WRIST_R].y], Math.min(kps[KP.ELBOW_R].confidence, kps[KP.WRIST_R].confidence)],
+
+      // cadera izquierda a rodilla izquierda
+      [[kps[KP.HIP_L].x, kps[KP.HIP_L].y], [kps[KP.KNEE_L].x, kps[KP.KNEE_L].y], Math.min(kps[KP.HIP_L].confidence, kps[KP.KNEE_L].confidence)],
+
+      // rodilla izquierda a tobillo izquierdo
+      [[kps[KP.KNEE_L].x, kps[KP.KNEE_L].y], [kps[KP.ANKLE_L].x, kps[KP.ANKLE_L].y], Math.min(kps[KP.KNEE_L].confidence, kps[KP.ANKLE_L].confidence)],
+
+      // cadera derecha a rodilla derecha
+      [[kps[KP.HIP_R].x, kps[KP.HIP_R].y], [kps[KP.KNEE_R].x, kps[KP.KNEE_R].y], Math.min(kps[KP.HIP_R].confidence, kps[KP.KNEE_R].confidence)],
+
+      // rodilla derecha a tobillo derecho
+      [[kps[KP.KNEE_R].x, kps[KP.KNEE_R].y], [kps[KP.ANKLE_R].x, kps[KP.ANKLE_R].y], Math.min(kps[KP.KNEE_R].confidence, kps[KP.ANKLE_R].confidence)],
+
+      // nuca a hombro izquierdo
+      [[nape.x, nape.y], [shoulders.left.x, shoulders.left.y], Math.min(nape.conf, shoulders.left.conf)],
+
+      // nuca a hombro derecho
+      [[nape.x, nape.y], [shoulders.right.x, shoulders.right.y], Math.min(nape.conf, shoulders.right.conf)],
+
+      // hombro izquierdo a cadera izquierda
+      [[shoulders.left.x, shoulders.left.y], [kps[KP.HIP_L].x, kps[KP.HIP_L].y], Math.min(shoulders.left.conf, kps[KP.HIP_L].confidence)],
+
+      // hombro derecho a cadera derecha
+      [[shoulders.right.x, shoulders.right.y], [kps[KP.HIP_R].x, kps[KP.HIP_R].y], Math.min(shoulders.right.conf, kps[KP.HIP_R].confidence)],
+
+      // cadera izquierda a cadera derecha
+      [[kps[KP.HIP_L].x, kps[KP.HIP_L].y], [kps[KP.HIP_R].x, kps[KP.HIP_R].y], Math.min(kps[KP.HIP_L].confidence, kps[KP.HIP_R].confidence)],
+    ]
+
+    // agregar líneas con confianza suficiente
+    lines.forEach(([p1, p2, conf]) => {
       if (conf > this.CONFIDENCE_THRESHOLD) {
         this.lineData.push({
           start: { x: p1[0], y: p1[1] },
@@ -399,69 +441,14 @@ class Detection {
           confidence: conf,
         })
       }
-    }
-
-    const lines = [
-      [[kps[this.KEYPOINTS.HEAD].x, kps[this.KEYPOINTS.HEAD].y], [nape.x, nape.y], Math.min(kps[this.KEYPOINTS.HEAD].confidence, nape.conf)],
-      [[shoulders.left.x, shoulders.left.y], [kps[this.KEYPOINTS.ELBOW_L].x, kps[this.KEYPOINTS.ELBOW_L].y], Math.min(shoulders.left.conf, kps[this.KEYPOINTS.ELBOW_L].confidence)],
-      [
-        [kps[this.KEYPOINTS.ELBOW_L].x, kps[this.KEYPOINTS.ELBOW_L].y],
-        [kps[this.KEYPOINTS.WRIST_L].x, kps[this.KEYPOINTS.WRIST_L].y],
-        Math.min(kps[this.KEYPOINTS.ELBOW_L].confidence, kps[this.KEYPOINTS.WRIST_L].confidence),
-      ],
-      [
-        [shoulders.right.x, shoulders.right.y],
-        [kps[this.KEYPOINTS.ELBOW_R].x, kps[this.KEYPOINTS.ELBOW_R].y],
-        Math.min(shoulders.right.conf, kps[this.KEYPOINTS.ELBOW_R].confidence),
-      ],
-      [
-        [kps[this.KEYPOINTS.ELBOW_R].x, kps[this.KEYPOINTS.ELBOW_R].y],
-        [kps[this.KEYPOINTS.WRIST_R].x, kps[this.KEYPOINTS.WRIST_R].y],
-        Math.min(kps[this.KEYPOINTS.ELBOW_R].confidence, kps[this.KEYPOINTS.WRIST_R].confidence),
-      ],
-      [
-        [kps[this.KEYPOINTS.HIP_L].x, kps[this.KEYPOINTS.HIP_L].y],
-        [kps[this.KEYPOINTS.KNEE_L].x, kps[this.KEYPOINTS.KNEE_L].y],
-        Math.min(kps[this.KEYPOINTS.HIP_L].confidence, kps[this.KEYPOINTS.KNEE_L].confidence),
-      ],
-      [
-        [kps[this.KEYPOINTS.KNEE_L].x, kps[this.KEYPOINTS.KNEE_L].y],
-        [kps[this.KEYPOINTS.ANKLE_L].x, kps[this.KEYPOINTS.ANKLE_L].y],
-        Math.min(kps[this.KEYPOINTS.KNEE_L].confidence, kps[this.KEYPOINTS.ANKLE_L].confidence),
-      ],
-      [
-        [kps[this.KEYPOINTS.HIP_R].x, kps[this.KEYPOINTS.HIP_R].y],
-        [kps[this.KEYPOINTS.KNEE_R].x, kps[this.KEYPOINTS.KNEE_R].y],
-        Math.min(kps[this.KEYPOINTS.HIP_R].confidence, kps[this.KEYPOINTS.KNEE_R].confidence),
-      ],
-      [
-        [kps[this.KEYPOINTS.KNEE_R].x, kps[this.KEYPOINTS.KNEE_R].y],
-        [kps[this.KEYPOINTS.ANKLE_R].x, kps[this.KEYPOINTS.ANKLE_R].y],
-        Math.min(kps[this.KEYPOINTS.KNEE_R].confidence, kps[this.KEYPOINTS.ANKLE_R].confidence),
-      ],
-      [[nape.x, nape.y], [shoulders.left.x, shoulders.left.y], Math.min(nape.conf, shoulders.left.conf)],
-      [[nape.x, nape.y], [shoulders.right.x, shoulders.right.y], Math.min(nape.conf, shoulders.right.conf)],
-      [[shoulders.left.x, shoulders.left.y], [kps[this.KEYPOINTS.HIP_L].x, kps[this.KEYPOINTS.HIP_L].y], Math.min(shoulders.left.conf, kps[this.KEYPOINTS.HIP_L].confidence)],
-      [[shoulders.right.x, shoulders.right.y], [kps[this.KEYPOINTS.HIP_R].x, kps[this.KEYPOINTS.HIP_R].y], Math.min(shoulders.right.conf, kps[this.KEYPOINTS.HIP_R].confidence)],
-      [
-        [kps[this.KEYPOINTS.HIP_L].x, kps[this.KEYPOINTS.HIP_L].y],
-        [kps[this.KEYPOINTS.HIP_R].x, kps[this.KEYPOINTS.HIP_R].y],
-        Math.min(kps[this.KEYPOINTS.HIP_L].confidence, kps[this.KEYPOINTS.HIP_R].confidence),
-      ],
-    ]
-
-    lines.forEach(([p1, p2, conf]) => addLine(p1, p2, conf))
+    })
   }
 
   updatePendulums({ scaledWidth, scaledHeight, x, y }) {
     if (!this.skeletonData?.length) return
 
-    const currentPendulums = new Map()
-
     // guardar los péndulos actuales
-    for (const [id, pendulum] of this.pendulums) {
-      if (pendulum) currentPendulums.set(id, pendulum)
-    }
+    const currentPendulums = new Map([...this.pendulums].filter(([_, pendulum]) => pendulum))
 
     this.pendulums.clear()
 
@@ -472,32 +459,29 @@ class Detection {
       const virtualPoints = this.calculateVirtualPoints(kps)
       if (!virtualPoints) continue
 
-      const coords = [virtualPoints.nape.x * scaledWidth + x, virtualPoints.nape.y * scaledHeight + y]
-
-      // calcular la distancia entre hombros en píxeles
-      const shoulderDistance = dist(
-        kps[this.KEYPOINTS.SHOULDER_L].x * scaledWidth + x,
-        kps[this.KEYPOINTS.SHOULDER_L].y * scaledHeight + y,
-        kps[this.KEYPOINTS.SHOULDER_R].x * scaledWidth + x,
-        kps[this.KEYPOINTS.SHOULDER_R].y * scaledHeight + y
-      )
-
       // validar que el track_id sea válido
       const trackId = skeleton.track_id
       if (typeof trackId !== 'number' || trackId < 0) continue
 
+      const coords = [virtualPoints.nape.x * scaledWidth + x, virtualPoints.nape.y * scaledHeight + y]
+
+      // calcular la distancia entre hombros en píxeles
+      const { SHOULDER_L, SHOULDER_R } = this.KEYPOINTS
+      const shoulderDistance = dist(
+        kps[SHOULDER_L].x * scaledWidth + x,
+        kps[SHOULDER_L].y * scaledHeight + y,
+        kps[SHOULDER_R].x * scaledWidth + x,
+        kps[SHOULDER_R].y * scaledHeight + y
+      )
+
       // calcular la longitud del péndulo basada en la distancia entre hombros
       const length = shoulderDistance * 0.4
 
-      let pendulum = currentPendulums.get(trackId)
-      if (!pendulum) {
-        pendulum = new Pendulum(length)
-      } else {
-        // actualizar solo la longitud y el damping
-        pendulum.length = length
-      }
-
+      // reutilizar el péndulo existente o crear uno nuevo
+      let pendulum = currentPendulums.get(trackId) || new Pendulum(length)
+      pendulum.length = length
       pendulum.update({ x: coords[0], y: coords[1] })
+
       this.pendulums.set(trackId, pendulum)
     }
   }

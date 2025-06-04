@@ -9,6 +9,6 @@ const CONFIG = {
   },
   pose: {
     endpoint: 'http://localhost:8000/detect',
-    requestInterval: 100,
+    requestInterval: 60,
   },
 }
