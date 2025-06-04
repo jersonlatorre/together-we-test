@@ -18,6 +18,27 @@ cd together-we-test
 
 ## Uso
 
+Instalar las dependencias en `/detector`:
+
+```bash
+# inicializar el entorno virtual
+cd detector # ubicarse en el directorio
+python -m venv venv
+source venv/bin/activate
+
+# instalar las dependencias
+pip install -r requirements.txt
+```
+
+Instalar las dependencias en `/interaction`:
+
+```bash
+# inicializar el entorno virtual
+cd interaction # ubicarse en el directorio
+npm install
+npm run dev
+```
+
 Ejecutar el sistema:
 
 ```bash
@@ -37,6 +58,7 @@ Ejecutar el sistema:
 El sistema puede usar dos tipos de entrada de video:
 
 1. **Video Predefinido** (`inputSource: 'video'`):
+
    - Usa un archivo de video desde la ruta especificada
    - Por defecto: `/assets/videos/demo-7.mp4`
 
@@ -53,8 +75,8 @@ Para cambiar la configuración, edita `interaction/public/src/config.js`:
 const CONFIG = {
   video: {
     inputSource: 'video', // 'video' | 'webcam'
-    cameraIndex: 0,       // índice de la cámara (solo para webcam)
+    cameraIndex: 0, // índice de la cámara (solo para webcam)
     // ... otras configuraciones
-  }
+  },
 }
 ```
