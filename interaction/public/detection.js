@@ -1,21 +1,47 @@
 class Detection {
   constructor() {
+    // datos para dibujar
     this.skeletonData = []
     this.lineData = []
     this.headData = []
+
+    // datos para la detección
     this.lastRequestTime = 0
+
+    // shaders
     this.shader = null
     this.videoBuffer = null
     this.effectsLayer = null
     this.fragShader = ''
     this.isFragShaderLoaded = false
+
+    // input
     this.video = null
     this.inputSource = 'video'
     // this.inputSource = 'webcam'
+
+    // pendulums
     this.pendulums = new Map()
-    this.nextId = 0
-    this.skeletonIds = new Map()
-    this.lastSkeletonPositions = new Map()
+
+    // constantes específicas
+    this.KEYPOINTS = {
+      HEAD: 0,
+      SHOULDER_L: 5,
+      SHOULDER_R: 6,
+      ELBOW_L: 7,
+      ELBOW_R: 8,
+      WRIST_L: 9,
+      WRIST_R: 10,
+      HIP_L: 11,
+      HIP_R: 12,
+      KNEE_L: 13,
+      KNEE_R: 14,
+      ANKLE_L: 15,
+      ANKLE_R: 16,
+    }
+
+    this.CONFIDENCE_THRESHOLD = 0.3
+    this.BRIGHTNESS_THRESHOLD = 0
   }
 
   async init() {
@@ -39,8 +65,7 @@ class Detection {
     this.shader = createFilterShader(this.fragShader)
     if (!this.shader) throw new Error('Failed to create shader')
 
-    this.shader.setUniform('pixelSize', CONFIG.shader.pixelSize)
-    this.shader.setUniform('brightnessThreshold', CONFIG.shader.brightnessThreshold)
+    this.shader.setUniform('brightnessThreshold', this.BRIGHTNESS_THRESHOLD)
     this.shader.setUniform('canvasSize', [width, height])
     this.shader.setUniform('texelSize', [1.0 / width, 1.0 / height])
 
@@ -128,44 +153,6 @@ class Detection {
     }
   }
 
-  calculateSkeletonId(skeleton) {
-    const kps = skeleton.keypoints
-    if (!kps || kps.length < 17) return null
-
-    const head = kps[CONFIG.keypoints.HEAD]
-    const shoulderL = kps[CONFIG.keypoints.SHOULDER_L]
-    const shoulderR = kps[CONFIG.keypoints.SHOULDER_R]
-
-    if (!head || !shoulderL || !shoulderR) return null
-
-    const centerX = (shoulderL.x + shoulderR.x) / 2
-    const centerY = (shoulderL.y + shoulderR.y) / 2
-
-    return `${Math.round(centerX * 10) / 10},${Math.round(centerY * 10) / 10}`
-  }
-
-  findClosestExistingSkeleton(newSkeleton) {
-    const newId = this.calculateSkeletonId(newSkeleton)
-    if (!newId) return null
-
-    const newCenterX = parseFloat(newId.split(',')[0])
-    const newCenterY = parseFloat(newId.split(',')[1])
-
-    let closestId = null
-    let minDistance = Infinity
-
-    for (const [id, position] of this.lastSkeletonPositions) {
-      const distance = Math.sqrt(Math.pow(newCenterX - position.x, 2) + Math.pow(newCenterY - position.y, 2))
-
-      if (distance < 0.2 && distance < minDistance) {
-        minDistance = distance
-        closestId = id
-      }
-    }
-
-    return closestId
-  }
-
   async requestPoses(video) {
     if (!video?.elt) return
 
@@ -240,45 +227,45 @@ class Detection {
 
   processHead(kps) {
     if (
-      kps[CONFIG.keypoints.HEAD].confidence > CONFIG.pose.confidenceThreshold &&
-      kps[CONFIG.keypoints.SHOULDER_L].confidence > CONFIG.pose.confidenceThreshold &&
-      kps[CONFIG.keypoints.SHOULDER_R].confidence > CONFIG.pose.confidenceThreshold
+      kps[this.KEYPOINTS.HEAD].confidence > this.CONFIDENCE_THRESHOLD &&
+      kps[this.KEYPOINTS.SHOULDER_L].confidence > this.CONFIDENCE_THRESHOLD &&
+      kps[this.KEYPOINTS.SHOULDER_R].confidence > this.CONFIDENCE_THRESHOLD
     ) {
-      const shoulderDistance = dist(kps[CONFIG.keypoints.SHOULDER_L].x, kps[CONFIG.keypoints.SHOULDER_L].y, kps[CONFIG.keypoints.SHOULDER_R].x, kps[CONFIG.keypoints.SHOULDER_R].y)
+      const shoulderDistance = dist(kps[this.KEYPOINTS.SHOULDER_L].x, kps[this.KEYPOINTS.SHOULDER_L].y, kps[this.KEYPOINTS.SHOULDER_R].x, kps[this.KEYPOINTS.SHOULDER_R].y)
       this.headData.push({
-        x: kps[CONFIG.keypoints.HEAD].x,
-        y: kps[CONFIG.keypoints.HEAD].y,
+        x: kps[this.KEYPOINTS.HEAD].x,
+        y: kps[this.KEYPOINTS.HEAD].y,
         shoulderDistance,
       })
     }
   }
 
   calculateVirtualPoints(kps) {
-    if (kps[CONFIG.keypoints.SHOULDER_L].confidence <= CONFIG.pose.confidenceThreshold || kps[CONFIG.keypoints.SHOULDER_R].confidence <= CONFIG.pose.confidenceThreshold) {
+    if (kps[this.KEYPOINTS.SHOULDER_L].confidence <= this.CONFIDENCE_THRESHOLD || kps[this.KEYPOINTS.SHOULDER_R].confidence <= this.CONFIDENCE_THRESHOLD) {
       return null
     }
 
     const nape = {
-      x: (kps[CONFIG.keypoints.SHOULDER_L].x + kps[CONFIG.keypoints.SHOULDER_R].x) / 2,
-      y: (kps[CONFIG.keypoints.SHOULDER_L].y + kps[CONFIG.keypoints.SHOULDER_R].y) / 2,
-      conf: Math.min(kps[CONFIG.keypoints.SHOULDER_L].confidence, kps[CONFIG.keypoints.SHOULDER_R].confidence),
+      x: (kps[this.KEYPOINTS.SHOULDER_L].x + kps[this.KEYPOINTS.SHOULDER_R].x) / 2,
+      y: (kps[this.KEYPOINTS.SHOULDER_L].y + kps[this.KEYPOINTS.SHOULDER_R].y) / 2,
+      conf: Math.min(kps[this.KEYPOINTS.SHOULDER_L].confidence, kps[this.KEYPOINTS.SHOULDER_R].confidence),
     }
 
-    if (kps[CONFIG.keypoints.HEAD].confidence > CONFIG.pose.confidenceThreshold) {
-      nape.y = nape.y * 0.8 + kps[CONFIG.keypoints.HEAD].y * 0.2
+    if (kps[this.KEYPOINTS.HEAD].confidence > this.CONFIDENCE_THRESHOLD) {
+      nape.y = nape.y * 0.8 + kps[this.KEYPOINTS.HEAD].y * 0.2
     }
 
     return {
       nape,
       shoulders: {
-        left: this.createShoulderPoint(nape, kps[CONFIG.keypoints.SHOULDER_L]),
-        right: this.createShoulderPoint(nape, kps[CONFIG.keypoints.SHOULDER_R]),
+        left: this.createShoulderPoint(nape, kps[this.KEYPOINTS.SHOULDER_L]),
+        right: this.createShoulderPoint(nape, kps[this.KEYPOINTS.SHOULDER_R]),
       },
     }
   }
 
   createShoulderPoint(nape, shoulder) {
-    return shoulder.confidence > CONFIG.pose.confidenceThreshold
+    return shoulder.confidence > this.CONFIDENCE_THRESHOLD
       ? {
           x: (nape.x + shoulder.x) / 2,
           y: (nape.y + shoulder.y) / 2,
@@ -405,7 +392,7 @@ class Detection {
     const { nape, shoulders } = virtualPoints
 
     const addLine = (p1, p2, conf) => {
-      if (conf > CONFIG.pose.confidenceThreshold) {
+      if (conf > this.CONFIDENCE_THRESHOLD) {
         this.lineData.push({
           start: { x: p1[0], y: p1[1] },
           end: { x: p2[0], y: p2[1] },
@@ -415,59 +402,51 @@ class Detection {
     }
 
     const lines = [
-      [[kps[CONFIG.keypoints.HEAD].x, kps[CONFIG.keypoints.HEAD].y], [nape.x, nape.y], Math.min(kps[CONFIG.keypoints.HEAD].confidence, nape.conf)],
+      [[kps[this.KEYPOINTS.HEAD].x, kps[this.KEYPOINTS.HEAD].y], [nape.x, nape.y], Math.min(kps[this.KEYPOINTS.HEAD].confidence, nape.conf)],
+      [[shoulders.left.x, shoulders.left.y], [kps[this.KEYPOINTS.ELBOW_L].x, kps[this.KEYPOINTS.ELBOW_L].y], Math.min(shoulders.left.conf, kps[this.KEYPOINTS.ELBOW_L].confidence)],
       [
-        [shoulders.left.x, shoulders.left.y],
-        [kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y],
-        Math.min(shoulders.left.conf, kps[CONFIG.keypoints.ELBOW_L].confidence),
-      ],
-      [
-        [kps[CONFIG.keypoints.ELBOW_L].x, kps[CONFIG.keypoints.ELBOW_L].y],
-        [kps[CONFIG.keypoints.WRIST_L].x, kps[CONFIG.keypoints.WRIST_L].y],
-        Math.min(kps[CONFIG.keypoints.ELBOW_L].confidence, kps[CONFIG.keypoints.WRIST_L].confidence),
+        [kps[this.KEYPOINTS.ELBOW_L].x, kps[this.KEYPOINTS.ELBOW_L].y],
+        [kps[this.KEYPOINTS.WRIST_L].x, kps[this.KEYPOINTS.WRIST_L].y],
+        Math.min(kps[this.KEYPOINTS.ELBOW_L].confidence, kps[this.KEYPOINTS.WRIST_L].confidence),
       ],
       [
         [shoulders.right.x, shoulders.right.y],
-        [kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y],
-        Math.min(shoulders.right.conf, kps[CONFIG.keypoints.ELBOW_R].confidence),
+        [kps[this.KEYPOINTS.ELBOW_R].x, kps[this.KEYPOINTS.ELBOW_R].y],
+        Math.min(shoulders.right.conf, kps[this.KEYPOINTS.ELBOW_R].confidence),
       ],
       [
-        [kps[CONFIG.keypoints.ELBOW_R].x, kps[CONFIG.keypoints.ELBOW_R].y],
-        [kps[CONFIG.keypoints.WRIST_R].x, kps[CONFIG.keypoints.WRIST_R].y],
-        Math.min(kps[CONFIG.keypoints.ELBOW_R].confidence, kps[CONFIG.keypoints.WRIST_R].confidence),
+        [kps[this.KEYPOINTS.ELBOW_R].x, kps[this.KEYPOINTS.ELBOW_R].y],
+        [kps[this.KEYPOINTS.WRIST_R].x, kps[this.KEYPOINTS.WRIST_R].y],
+        Math.min(kps[this.KEYPOINTS.ELBOW_R].confidence, kps[this.KEYPOINTS.WRIST_R].confidence),
       ],
       [
-        [kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y],
-        [kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y],
-        Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.KNEE_L].confidence),
+        [kps[this.KEYPOINTS.HIP_L].x, kps[this.KEYPOINTS.HIP_L].y],
+        [kps[this.KEYPOINTS.KNEE_L].x, kps[this.KEYPOINTS.KNEE_L].y],
+        Math.min(kps[this.KEYPOINTS.HIP_L].confidence, kps[this.KEYPOINTS.KNEE_L].confidence),
       ],
       [
-        [kps[CONFIG.keypoints.KNEE_L].x, kps[CONFIG.keypoints.KNEE_L].y],
-        [kps[CONFIG.keypoints.ANKLE_L].x, kps[CONFIG.keypoints.ANKLE_L].y],
-        Math.min(kps[CONFIG.keypoints.KNEE_L].confidence, kps[CONFIG.keypoints.ANKLE_L].confidence),
+        [kps[this.KEYPOINTS.KNEE_L].x, kps[this.KEYPOINTS.KNEE_L].y],
+        [kps[this.KEYPOINTS.ANKLE_L].x, kps[this.KEYPOINTS.ANKLE_L].y],
+        Math.min(kps[this.KEYPOINTS.KNEE_L].confidence, kps[this.KEYPOINTS.ANKLE_L].confidence),
       ],
       [
-        [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y],
-        [kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y],
-        Math.min(kps[CONFIG.keypoints.HIP_R].confidence, kps[CONFIG.keypoints.KNEE_R].confidence),
+        [kps[this.KEYPOINTS.HIP_R].x, kps[this.KEYPOINTS.HIP_R].y],
+        [kps[this.KEYPOINTS.KNEE_R].x, kps[this.KEYPOINTS.KNEE_R].y],
+        Math.min(kps[this.KEYPOINTS.HIP_R].confidence, kps[this.KEYPOINTS.KNEE_R].confidence),
       ],
       [
-        [kps[CONFIG.keypoints.KNEE_R].x, kps[CONFIG.keypoints.KNEE_R].y],
-        [kps[CONFIG.keypoints.ANKLE_R].x, kps[CONFIG.keypoints.ANKLE_R].y],
-        Math.min(kps[CONFIG.keypoints.KNEE_R].confidence, kps[CONFIG.keypoints.ANKLE_R].confidence),
+        [kps[this.KEYPOINTS.KNEE_R].x, kps[this.KEYPOINTS.KNEE_R].y],
+        [kps[this.KEYPOINTS.ANKLE_R].x, kps[this.KEYPOINTS.ANKLE_R].y],
+        Math.min(kps[this.KEYPOINTS.KNEE_R].confidence, kps[this.KEYPOINTS.ANKLE_R].confidence),
       ],
       [[nape.x, nape.y], [shoulders.left.x, shoulders.left.y], Math.min(nape.conf, shoulders.left.conf)],
       [[nape.x, nape.y], [shoulders.right.x, shoulders.right.y], Math.min(nape.conf, shoulders.right.conf)],
-      [[shoulders.left.x, shoulders.left.y], [kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y], Math.min(shoulders.left.conf, kps[CONFIG.keypoints.HIP_L].confidence)],
+      [[shoulders.left.x, shoulders.left.y], [kps[this.KEYPOINTS.HIP_L].x, kps[this.KEYPOINTS.HIP_L].y], Math.min(shoulders.left.conf, kps[this.KEYPOINTS.HIP_L].confidence)],
+      [[shoulders.right.x, shoulders.right.y], [kps[this.KEYPOINTS.HIP_R].x, kps[this.KEYPOINTS.HIP_R].y], Math.min(shoulders.right.conf, kps[this.KEYPOINTS.HIP_R].confidence)],
       [
-        [shoulders.right.x, shoulders.right.y],
-        [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y],
-        Math.min(shoulders.right.conf, kps[CONFIG.keypoints.HIP_R].confidence),
-      ],
-      [
-        [kps[CONFIG.keypoints.HIP_L].x, kps[CONFIG.keypoints.HIP_L].y],
-        [kps[CONFIG.keypoints.HIP_R].x, kps[CONFIG.keypoints.HIP_R].y],
-        Math.min(kps[CONFIG.keypoints.HIP_L].confidence, kps[CONFIG.keypoints.HIP_R].confidence),
+        [kps[this.KEYPOINTS.HIP_L].x, kps[this.KEYPOINTS.HIP_L].y],
+        [kps[this.KEYPOINTS.HIP_R].x, kps[this.KEYPOINTS.HIP_R].y],
+        Math.min(kps[this.KEYPOINTS.HIP_L].confidence, kps[this.KEYPOINTS.HIP_R].confidence),
       ],
     ]
 
@@ -497,10 +476,10 @@ class Detection {
 
       // calcular la distancia entre hombros en píxeles
       const shoulderDistance = dist(
-        kps[CONFIG.keypoints.SHOULDER_L].x * scaledWidth + x,
-        kps[CONFIG.keypoints.SHOULDER_L].y * scaledHeight + y,
-        kps[CONFIG.keypoints.SHOULDER_R].x * scaledWidth + x,
-        kps[CONFIG.keypoints.SHOULDER_R].y * scaledHeight + y
+        kps[this.KEYPOINTS.SHOULDER_L].x * scaledWidth + x,
+        kps[this.KEYPOINTS.SHOULDER_L].y * scaledHeight + y,
+        kps[this.KEYPOINTS.SHOULDER_R].x * scaledWidth + x,
+        kps[this.KEYPOINTS.SHOULDER_R].y * scaledHeight + y
       )
 
       // validar que el track_id sea válido

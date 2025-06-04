@@ -13,7 +13,6 @@ uniform int lineCount;
 uniform float lines[600];
 uniform int headCount;
 uniform float heads[200];
-uniform float pixelSize;
 uniform float brightnessThreshold;
 
 // constantes
@@ -22,7 +21,6 @@ const float HEAD_GLOW_STRENGTH = 10.0;
 const float HEAD_GLOW_MIN_DIST = 0.01;
 const vec3 BASE_COLOR = vec3(0.0, 0.0, 0.1);
 const vec3 GLOW_COLOR = vec3(0.8, 0.8, 1.0); // #CCCCFF
-// const vec3 GLOW_COLOR = vec3(0.5, 0.5, 0.65); // #CCCCFF
 const vec3 HEAD_COLOR = vec3(0.8, 0.8, 1.0);
 const vec3 HEAD_COLOR_INNER = vec3(0.9176, 0.9137, 0.8431);
 
@@ -36,9 +34,7 @@ float segmentGlow(vec2 p, vec2 a, vec2 b, float radius, float softness) {
 }
 
 void main() {
-  // pixelación optimizada
-  vec2 pixelatedCoord = floor(vTexCoord * pixelSize) / pixelSize;
-  vec2 pixelCoord = pixelatedCoord * canvasSize;
+  vec2 pixelCoord = vTexCoord * canvasSize;
 
   // calcular glow de líneas
   float glow = 0.0;
