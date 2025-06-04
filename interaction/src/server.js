@@ -15,6 +15,6 @@ app.get('/', (req, res) => {
   res.sendFile(join(__dirname, '../public/index.html'))
 })
 
-const server = app.listen(port, () => {
+app.listen(port, () => {
   console.log(`servidor corriendo en http://localhost:${port}`)
 })

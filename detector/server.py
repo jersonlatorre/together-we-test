@@ -9,8 +9,10 @@ from typing import List
 import logging
 
 # configurar logging
-logging.getLogger("ultralytics").setLevel(logging.WARNING)
-logging.getLogger("fastapi").setLevel(logging.WARNING)
+logging.getLogger("ultralytics").setLevel(logging.ERROR)
+logging.getLogger("fastapi").setLevel(logging.ERROR)
+logging.getLogger("uvicorn").setLevel(logging.ERROR)
+logging.getLogger("uvicorn.access").setLevel(logging.ERROR)
 
 app = FastAPI()
 

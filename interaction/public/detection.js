@@ -10,7 +10,8 @@ class Detection {
     this.fragShader = ''
     this.isFragShaderLoaded = false
     this.video = null
-    this.inputSource = 'webcam'
+    this.inputSource = 'video'
+    // this.inputSource = 'webcam'
     this.pendulums = new Map()
     this.nextId = 0
     this.skeletonIds = new Map()
