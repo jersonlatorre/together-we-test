@@ -17,8 +17,6 @@ class Detection {
 
     // input
     this.video = null
-    // this.inputSource = 'video'
-    this.inputSource = 'webcam'
 
     // pendulums
     this.pendulums = new Map()
@@ -72,7 +70,7 @@ class Detection {
   }
 
   async initVideo() {
-    if (this.inputSource === 'webcam') {
+    if (CONFIG.video.inputSource === 'webcam') {
       await this.initWebcam()
     } else {
       this.initVideoElement()
@@ -140,7 +138,7 @@ class Detection {
 
   drawVideoToBuffer() {
     this.videoBuffer.clear()
-    if (this.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
+    if (CONFIG.video.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
       this.videoBuffer.push()
       this.videoBuffer.translate(CONFIG.video.width, 0)
       this.videoBuffer.scale(-1, 1)
@@ -165,7 +163,7 @@ class Detection {
         return
       }
 
-      if (this.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
+      if (CONFIG.video.inputSource === 'webcam' && CONFIG.video.isWebcamFlipped) {
         ctx.scale(-1, 1)
         ctx.drawImage(video.elt, -CONFIG.video.width, 0, CONFIG.video.width, CONFIG.video.height)
       } else if (video.elt.readyState >= 2) {
