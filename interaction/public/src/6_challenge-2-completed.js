@@ -1,4 +1,4 @@
-class CountDown1State {
+class Challenge2CompletedState {
   constructor() {
     this.count = 5
     this.lastUpdate = millis()
@@ -13,13 +13,18 @@ class CountDown1State {
   }
 
   draw() {
-    background('black')
+    push()
+    fill(0, 0, 0, 180)
+    rect(0, 0, width, height)
+
     fill('white')
-    textSize(25)
     textFont(fontLexend)
+    textSize(20)
     textAlign(CENTER)
-    text('¿ESTÁS LISTO PARA ACCIONAR?', width / 2, height / 2 - 25)
-    text(this.count, width / 2, height / 2 + 25)
+    text('¡LO LOGRAMOS! \nESTAMOS LISTOS PARA DAR EL SIGUIENTE PASO', width / 2, height / 2 - 30)
+    textSize(14)
+    text('Visita la Próxima Sala', width / 2, height / 2 + 30)
+    pop()
 
     // decrementar contador cada segundo
     const currentTime = millis()

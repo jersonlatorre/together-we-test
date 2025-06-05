@@ -35,6 +35,30 @@ async function keyPressed() {
   if (key === '2') {
     state.remove()
     state = new CountDown1State()
-    await state.init()
+    state.init()
+  }
+
+  if (key === '3') {
+    state.remove()
+    state = new Challenge1State()
+    state.init()
+  }
+
+  if (key === '4') {
+    state.remove()
+    state = new Challenge1CompletedState()
+    state.init()
+  }
+
+  if (key === '5') {
+    state.remove()
+    state = new Challenge2State()
+    state.init()
+  }
+
+  if (key === '6') {
+    state.remove()
+    state = new Challenge2CompletedState()
+    state.init()
   }
 }
