@@ -13,7 +13,6 @@ uniform int lineCount;
 uniform float lines[600];
 uniform int headCount;
 uniform float heads[200];
-uniform float brightnessThreshold;
 
 // constantes
 const float LINE_SOFTNESS = 40.0;
@@ -68,12 +67,6 @@ void main() {
   vec3 baseColor = mix(BASE_COLOR, GLOW_COLOR, glow);
   vec3 finalColor = mix(baseColor, HEAD_COLOR, headGlow);
   finalColor = mix(finalColor, HEAD_COLOR_INNER, innerHeadGlow);
-
-  // aplicar umbral de brillo
-  float brightness = (finalColor.r + finalColor.g + finalColor.b) / 3.0;
-  if (brightness < brightnessThreshold) {
-    finalColor = vec3(0.0);
-  }
 
   gl_FragColor = vec4(finalColor, 1.0);
 }

@@ -1,4 +1,4 @@
-class Detection {
+class IntroState {
   constructor() {
     // datos para dibujar
     this.skeletonData = []
@@ -18,9 +18,6 @@ class Detection {
     // input
     this.video = null
 
-    // pendulums
-    this.pendulums = new Map()
-
     // constantes específicas
     this.KEYPOINTS = {
       HEAD: 0,
@@ -39,7 +36,6 @@ class Detection {
     }
 
     this.CONFIDENCE_THRESHOLD = 0.3
-    this.BRIGHTNESS_THRESHOLD = 0
   }
 
   async init() {
@@ -53,6 +49,36 @@ class Detection {
     }
   }
 
+  remove() {
+    // limpiar arrays
+    this.skeletonData = []
+    this.lineData = []
+    this.headData = []
+
+    // limpiar shader
+    this.shader = null
+
+    // limpiar buffers gráficos
+    if (this.effectsLayer) {
+      this.effectsLayer.remove()
+      this.effectsLayer = null
+    }
+    if (this.videoBuffer) {
+      this.videoBuffer.remove()
+      this.videoBuffer = null
+    }
+
+    // limpiar video
+    if (this.video) {
+      if (this.video.elt) {
+        this.video.elt.pause()
+        this.video.elt.srcObject = null
+        this.video.elt.remove()
+      }
+      this.video = null
+    }
+  }
+
   async initShader() {
     this.fragShader = (await loadStrings('shaders/effect.frag')).join('\n')
     this.effectsLayer = createGraphics(windowWidth, windowHeight)
@@ -61,7 +87,6 @@ class Detection {
     this.shader = createFilterShader(this.fragShader)
     if (!this.shader) throw new Error('Failed to create shader')
 
-    this.shader.setUniform('brightnessThreshold', this.BRIGHTNESS_THRESHOLD)
     this.shader.setUniform('canvasSize', [width, height])
     this.shader.setUniform('texelSize', [1.0 / width, 1.0 / height])
 
@@ -286,8 +311,7 @@ class Detection {
 
     this.updateShader(linesArray, count, headsArray, headCount)
     this.drawStarLines(dimensions)
-    this.updatePendulums(dimensions)
-    this.drawPendulums()
+    this.drawText()
   }
 
   calculateDimensions() {
@@ -442,58 +466,16 @@ class Detection {
     })
   }
 
-  updatePendulums({ scaledWidth, scaledHeight, x, y }) {
-    if (!this.skeletonData?.length) return
+  drawText() {
+    push()
+    fill(0, 0, 0, 60)
+    rect(0, 0, width, 40)
 
-    // guardar los péndulos actuales
-    const currentPendulums = new Map([...this.pendulums].filter(([_, pendulum]) => pendulum))
-
-    this.pendulums.clear()
-
-    for (const skeleton of this.skeletonData) {
-      const kps = skeleton.keypoints
-      if (!kps?.length || kps.length < 17) continue
-
-      const virtualPoints = this.calculateVirtualPoints(kps)
-      if (!virtualPoints) continue
-
-      // validar que el track_id sea válido
-      const trackId = skeleton.track_id
-      if (typeof trackId !== 'number' || trackId < 0) continue
-
-      const coords = [virtualPoints.nape.x * scaledWidth + x, virtualPoints.nape.y * scaledHeight + y]
-
-      // calcular la distancia entre hombros en píxeles
-      const { SHOULDER_L, SHOULDER_R } = this.KEYPOINTS
-      const shoulderDistance = dist(
-        kps[SHOULDER_L].x * scaledWidth + x,
-        kps[SHOULDER_L].y * scaledHeight + y,
-        kps[SHOULDER_R].x * scaledWidth + x,
-        kps[SHOULDER_R].y * scaledHeight + y
-      )
-
-      // calcular la longitud del péndulo basada en la distancia entre hombros
-      const length = shoulderDistance * 0.4
-
-      // reutilizar el péndulo existente o crear uno nuevo
-      let pendulum = currentPendulums.get(trackId) || new Pendulum(length)
-      pendulum.length = length
-      pendulum.update({ x: coords[0], y: coords[1] })
-
-      this.pendulums.set(trackId, pendulum)
-    }
-  }
-
-  drawPendulums() {
-    this.effectsLayer.push()
-    this.effectsLayer.stroke(255, 255, 255, 100)
-    this.effectsLayer.strokeWeight(2)
-    this.effectsLayer.noFill()
-
-    for (const pendulum of this.pendulums.values()) {
-      pendulum.draw()
-    }
-
-    this.effectsLayer.pop()
+    fill('white')
+    textFont(fontLexend)
+    textSize(14)
+    textAlign(CENTER)
+    text('SI NOS MOVEMOS, DESCUBRIREMOS EL PODER DE LA ACCIÓN', width / 2, 25)
+    pop()
   }
 }
