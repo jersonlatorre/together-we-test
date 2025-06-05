@@ -1,4 +1,4 @@
-class DetectionState {
+class Detection {
   constructor() {
     // datos para dibujar
     this.skeletonData = []

@@ -12,13 +12,16 @@ async function setup() {
   createCanvas(2352 * FACTOR, 840 * FACTOR)
   frameRate(24)
 
+  detection = new Detection()
   state = new IntroState()
 
   // inicializar detección
+  await detection.init()
   await state.init()
 }
 
 function draw() {
+  detection.draw()
   state.draw()
 }
 
