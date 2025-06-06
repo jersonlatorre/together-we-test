@@ -349,7 +349,7 @@ class Detection {
     this.effectsLayer.stroke(255, 255, 255, 100)
     const N = 12
     const STAR_SIZE_RATIO = 0.25
-    const STAR_LINE_START_RATIO = 0.8
+    const STAR_LINE_START_RATIO = 0.99
 
     for (const head of this.headData) {
       const coords = this.calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y)
@@ -366,7 +366,7 @@ class Detection {
         const startX = coords[0] + cosAngle * (radius * STAR_LINE_START_RATIO) + randomOffset
         const startY = coords[1] + sinAngle * (radius * STAR_LINE_START_RATIO) + randomOffset
 
-        this.effectsLayer.strokeWeight(sqrt(radius) * 0.3)
+        this.effectsLayer.strokeWeight(sqrt(radius) * 0.6)
         this.effectsLayer.line(startX, startY, endX, endY)
       }
     }

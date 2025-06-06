@@ -2,6 +2,7 @@ class Challenge1CompletedState {
   constructor() {
     this.count = 5
     this.lastUpdate = millis()
+    this.init()
   }
 
   init() {
@@ -17,7 +18,7 @@ class Challenge1CompletedState {
     fill(0, 0, 0, 180)
     rect(0, 0, width, height)
 
-    fill('white')
+    fill('#E2E7D5')
     textFont(fontLexend)
     textSize(20)
     textAlign(CENTER)
