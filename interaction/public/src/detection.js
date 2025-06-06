@@ -19,7 +19,7 @@ class Detection {
     this.video = null
 
     // pendulums
-    // this.pendulums = new Map()
+    this.pendulums = new Map()
 
     // constantes específicas
     this.KEYPOINTS = {
@@ -38,7 +38,7 @@ class Detection {
       ANKLE_R: 16,
     }
 
-    this.CONFIDENCE_THRESHOLD = 0.3
+    this.CONFIDENCE_THRESHOLD = 0.1
   }
 
   async init() {
@@ -82,7 +82,7 @@ class Detection {
     }
 
     // limpiar pendulums
-    // this.pendulums.clear()
+    this.pendulums.clear()
   }
 
   async initShader() {
@@ -234,6 +234,22 @@ class Detection {
     }
   }
 
+  // función helper para verificar si un esqueleto es válido para procesamiento
+  isValidSkeleton(kps) {
+    if (!kps) return false
+    
+    const { SHOULDER_L, SHOULDER_R } = this.KEYPOINTS
+    
+    // verificar que existan los hombros (mínimo requerido)
+    if (!kps[SHOULDER_L] || !kps[SHOULDER_R]) return false
+    
+    // verificar confianza mínima para hombros
+    return (
+      kps[SHOULDER_L].confidence > this.CONFIDENCE_THRESHOLD &&
+      kps[SHOULDER_R].confidence > this.CONFIDENCE_THRESHOLD
+    )
+  }
+
   processPoseData() {
     this.lineData = []
     this.headData = []
@@ -242,23 +258,19 @@ class Detection {
 
     for (const skeleton of this.skeletonData) {
       const kps = skeleton.keypoints
-      if (!kps) continue
+      if (!this.isValidSkeleton(kps)) continue
 
       const { HEAD, SHOULDER_L, SHOULDER_R } = this.KEYPOINTS
-      if (
-        kps[HEAD]?.confidence <= this.CONFIDENCE_THRESHOLD ||
-        kps[SHOULDER_L]?.confidence <= this.CONFIDENCE_THRESHOLD ||
-        kps[SHOULDER_R]?.confidence <= this.CONFIDENCE_THRESHOLD
-      )
-        continue
-
       const shoulderDistance = dist(kps[SHOULDER_L].x, kps[SHOULDER_L].y, kps[SHOULDER_R].x, kps[SHOULDER_R].y)
 
-      this.headData.push({
-        x: kps[HEAD].x,
-        y: kps[HEAD].y,
-        shoulderDistance,
-      })
+      // solo agregar cabeza si existe y tiene confianza suficiente
+      if (kps[HEAD] && kps[HEAD].confidence > this.CONFIDENCE_THRESHOLD) {
+        this.headData.push({
+          x: kps[HEAD].x,
+          y: kps[HEAD].y,
+          shoulderDistance,
+        })
+      }
 
       const virtualPoints = this.calculateVirtualPoints(kps)
       this.addSkeletonLines(kps, virtualPoints)
@@ -274,7 +286,8 @@ class Detection {
       conf: Math.min(kps[SHOULDER_L].confidence, kps[SHOULDER_R].confidence),
     }
 
-    if (kps[HEAD].confidence > this.CONFIDENCE_THRESHOLD) {
+    // solo ajustar posición de nuca si hay cabeza con confianza suficiente
+    if (kps[HEAD] && kps[HEAD].confidence > this.CONFIDENCE_THRESHOLD) {
       nape.y = nape.y * 0.8 + kps[HEAD].y * 0.2
     }
 
@@ -317,8 +330,8 @@ class Detection {
 
     this.updateShader(linesArray, count, headsArray, headCount)
     this.drawStarLines(dimensions)
-    // this.updatePendulums(dimensions)
-    // this.drawPendulums()
+    this.updatePendulums(dimensions)
+    this.drawPendulums()
   }
 
   calculateDimensions() {
@@ -349,7 +362,7 @@ class Detection {
     this.effectsLayer.stroke(255, 255, 255, 100)
     const N = 12
     const STAR_SIZE_RATIO = 0.25
-    const STAR_LINE_START_RATIO = 0.99
+    const STAR_LINE_START_RATIO = 0.9
 
     for (const head of this.headData) {
       const coords = this.calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y)
@@ -359,12 +372,11 @@ class Detection {
         const angle = (2 * (i * PI)) / N
         const cosAngle = cos(angle)
         const sinAngle = sin(angle)
-        const randomOffset = random(-1, 1) * radius * 0.025
 
-        const endX = coords[0] + cosAngle * radius + randomOffset
-        const endY = coords[1] + sinAngle * radius + randomOffset
-        const startX = coords[0] + cosAngle * (radius * STAR_LINE_START_RATIO) + randomOffset
-        const startY = coords[1] + sinAngle * (radius * STAR_LINE_START_RATIO) + randomOffset
+        const endX = coords[0] + cosAngle * radius
+        const endY = coords[1] + sinAngle * radius
+        const startX = coords[0] + cosAngle * (radius * STAR_LINE_START_RATIO)
+        const startY = coords[1] + sinAngle * (radius * STAR_LINE_START_RATIO)
 
         this.effectsLayer.strokeWeight(sqrt(radius) * 0.6)
         this.effectsLayer.line(startX, startY, endX, endY)
@@ -416,54 +428,68 @@ class Detection {
     const { nape, shoulders } = virtualPoints
     const KP = this.KEYPOINTS
 
-    // Definir líneas como pares de puntos y su confianza
-    const lines = [
-      // cabeza a nuca
-      [[kps[KP.HEAD].x, kps[KP.HEAD].y], [nape.x, nape.y], Math.min(kps[KP.HEAD].confidence, nape.conf)],
+    // umbral más bajo para líneas principales del cuerpo
+    const BODY_THRESHOLD = this.CONFIDENCE_THRESHOLD * 0.6
+    // umbral normal para extremidades
+    const LIMB_THRESHOLD = this.CONFIDENCE_THRESHOLD
 
-      // hombro izquierdo a codo izquierdo
-      [[shoulders.left.x, shoulders.left.y], [kps[KP.ELBOW_L].x, kps[KP.ELBOW_L].y], Math.min(shoulders.left.conf, kps[KP.ELBOW_L].confidence)],
-
-      // codo izquierdo a muñeca izquierda
-      [[kps[KP.ELBOW_L].x, kps[KP.ELBOW_L].y], [kps[KP.WRIST_L].x, kps[KP.WRIST_L].y], Math.min(kps[KP.ELBOW_L].confidence, kps[KP.WRIST_L].confidence)],
-
-      // hombro derecho a codo derecho
-      [[shoulders.right.x, shoulders.right.y], [kps[KP.ELBOW_R].x, kps[KP.ELBOW_R].y], Math.min(shoulders.right.conf, kps[KP.ELBOW_R].confidence)],
-
-      // codo derecho a muñeca derecha
-      [[kps[KP.ELBOW_R].x, kps[KP.ELBOW_R].y], [kps[KP.WRIST_R].x, kps[KP.WRIST_R].y], Math.min(kps[KP.ELBOW_R].confidence, kps[KP.WRIST_R].confidence)],
-
-      // cadera izquierda a rodilla izquierda
-      [[kps[KP.HIP_L].x, kps[KP.HIP_L].y], [kps[KP.KNEE_L].x, kps[KP.KNEE_L].y], Math.min(kps[KP.HIP_L].confidence, kps[KP.KNEE_L].confidence)],
-
-      // rodilla izquierda a tobillo izquierdo
-      [[kps[KP.KNEE_L].x, kps[KP.KNEE_L].y], [kps[KP.ANKLE_L].x, kps[KP.ANKLE_L].y], Math.min(kps[KP.KNEE_L].confidence, kps[KP.ANKLE_L].confidence)],
-
-      // cadera derecha a rodilla derecha
-      [[kps[KP.HIP_R].x, kps[KP.HIP_R].y], [kps[KP.KNEE_R].x, kps[KP.KNEE_R].y], Math.min(kps[KP.HIP_R].confidence, kps[KP.KNEE_R].confidence)],
-
-      // rodilla derecha a tobillo derecho
-      [[kps[KP.KNEE_R].x, kps[KP.KNEE_R].y], [kps[KP.ANKLE_R].x, kps[KP.ANKLE_R].y], Math.min(kps[KP.KNEE_R].confidence, kps[KP.ANKLE_R].confidence)],
-
+    // líneas principales del cuerpo
+    const bodyLines = [
       // nuca a hombro izquierdo
       [[nape.x, nape.y], [shoulders.left.x, shoulders.left.y], Math.min(nape.conf, shoulders.left.conf)],
-
       // nuca a hombro derecho
       [[nape.x, nape.y], [shoulders.right.x, shoulders.right.y], Math.min(nape.conf, shoulders.right.conf)],
-
       // hombro izquierdo a cadera izquierda
       [[shoulders.left.x, shoulders.left.y], [kps[KP.HIP_L].x, kps[KP.HIP_L].y], Math.min(shoulders.left.conf, kps[KP.HIP_L].confidence)],
-
       // hombro derecho a cadera derecha
       [[shoulders.right.x, shoulders.right.y], [kps[KP.HIP_R].x, kps[KP.HIP_R].y], Math.min(shoulders.right.conf, kps[KP.HIP_R].confidence)],
-
       // cadera izquierda a cadera derecha
       [[kps[KP.HIP_L].x, kps[KP.HIP_L].y], [kps[KP.HIP_R].x, kps[KP.HIP_R].y], Math.min(kps[KP.HIP_L].confidence, kps[KP.HIP_R].confidence)],
     ]
 
-    // agregar líneas con confianza suficiente
-    lines.forEach(([p1, p2, conf]) => {
-      if (conf > this.CONFIDENCE_THRESHOLD) {
+    // línea de cabeza a nuca (solo si hay cabeza)
+    if (kps[KP.HEAD] && kps[KP.HEAD].confidence > this.CONFIDENCE_THRESHOLD) {
+      bodyLines.push([
+        [kps[KP.HEAD].x, kps[KP.HEAD].y], 
+        [nape.x, nape.y], 
+        Math.min(kps[KP.HEAD].confidence, nape.conf)
+      ])
+    }
+
+    // líneas de extremidades (con umbral normal)
+    const limbLines = [
+      // hombro izquierdo a codo izquierdo
+      [[shoulders.left.x, shoulders.left.y], [kps[KP.ELBOW_L].x, kps[KP.ELBOW_L].y], Math.min(shoulders.left.conf, kps[KP.ELBOW_L].confidence)],
+      // codo izquierdo a muñeca izquierda
+      [[kps[KP.ELBOW_L].x, kps[KP.ELBOW_L].y], [kps[KP.WRIST_L].x, kps[KP.WRIST_L].y], Math.min(kps[KP.ELBOW_L].confidence, kps[KP.WRIST_L].confidence)],
+      // hombro derecho a codo derecho
+      [[shoulders.right.x, shoulders.right.y], [kps[KP.ELBOW_R].x, kps[KP.ELBOW_R].y], Math.min(shoulders.right.conf, kps[KP.ELBOW_R].confidence)],
+      // codo derecho a muñeca derecha
+      [[kps[KP.ELBOW_R].x, kps[KP.ELBOW_R].y], [kps[KP.WRIST_R].x, kps[KP.WRIST_R].y], Math.min(kps[KP.ELBOW_R].confidence, kps[KP.WRIST_R].confidence)],
+      // cadera izquierda a rodilla izquierda
+      [[kps[KP.HIP_L].x, kps[KP.HIP_L].y], [kps[KP.KNEE_L].x, kps[KP.KNEE_L].y], Math.min(kps[KP.HIP_L].confidence, kps[KP.KNEE_L].confidence)],
+      // rodilla izquierda a tobillo izquierdo
+      [[kps[KP.KNEE_L].x, kps[KP.KNEE_L].y], [kps[KP.ANKLE_L].x, kps[KP.ANKLE_L].y], Math.min(kps[KP.KNEE_L].confidence, kps[KP.ANKLE_L].confidence)],
+      // cadera derecha a rodilla derecha
+      [[kps[KP.HIP_R].x, kps[KP.HIP_R].y], [kps[KP.KNEE_R].x, kps[KP.KNEE_R].y], Math.min(kps[KP.HIP_R].confidence, kps[KP.KNEE_R].confidence)],
+      // rodilla derecha a tobillo derecho
+      [[kps[KP.KNEE_R].x, kps[KP.KNEE_R].y], [kps[KP.ANKLE_R].x, kps[KP.ANKLE_R].y], Math.min(kps[KP.KNEE_R].confidence, kps[KP.ANKLE_R].confidence)],
+    ]
+
+    // agregar líneas principales del cuerpo con umbral más permisivo
+    bodyLines.forEach(([p1, p2, conf]) => {
+      if (conf > BODY_THRESHOLD) {
+        this.lineData.push({
+          start: { x: p1[0], y: p1[1] },
+          end: { x: p2[0], y: p2[1] },
+          confidence: conf,
+        })
+      }
+    })
+
+    // agregar líneas de extremidades con umbral normal
+    limbLines.forEach(([p1, p2, conf]) => {
+      if (conf > LIMB_THRESHOLD) {
         this.lineData.push({
           start: { x: p1[0], y: p1[1] },
           end: { x: p2[0], y: p2[1] },
@@ -483,7 +509,7 @@ class Detection {
 
     for (const skeleton of this.skeletonData) {
       const kps = skeleton.keypoints
-      if (!kps?.length || kps.length < 17) continue
+      if (!this.isValidSkeleton(kps)) continue
 
       const virtualPoints = this.calculateVirtualPoints(kps)
       if (!virtualPoints) continue

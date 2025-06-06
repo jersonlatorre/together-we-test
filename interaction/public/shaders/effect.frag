@@ -8,20 +8,25 @@ uniform sampler2D tex0;
 uniform vec2 canvasSize;
 uniform vec2 texelSize;
 
+// constantes
+const int MAX_LINES = 600;
+const int MAX_HEADS = 50;
+
 // uniforms personalizados
 uniform int lineCount;
-uniform float lines[600];
+uniform float lines[MAX_LINES];
 uniform int headCount;
-uniform float heads[200];
+uniform float heads[MAX_HEADS];
 
 // constantes
-const float LINE_SOFTNESS = 40.0;
+const float LINE_SOFTNESS = 5.0;
 const float HEAD_GLOW_STRENGTH = 10.0;
-const float HEAD_GLOW_MIN_DIST = 0.01;
+const float HEAD_GLOW_MAX = 0.5;
+const float HEAD_GLOW_INNER_MAX = 0.5;
 const vec3 BASE_COLOR = vec3(0.0, 0.0, 0.1);
-const vec3 GLOW_COLOR = vec3(0.8, 0.8, 1.0); // #CCCCFF
-const vec3 HEAD_COLOR = vec3(0.8, 0.8, 1.0);
-const vec3 HEAD_COLOR_INNER = vec3(0.9176, 0.9137, 0.8431);
+const vec3 GLOW_COLOR = vec3(0.8, 0.8, 1.0);                // #CCCCFF
+const vec3 HEAD_COLOR = vec3(0.8, 0.8, 1.0);                // #CCCCFF
+const vec3 HEAD_COLOR_INNER = vec3(0.9176, 0.9137, 0.8431); // #EAE9D7
 
 // función optimizada para calcular la distancia de un punto a una línea
 float segmentGlow(vec2 p, vec2 a, vec2 b, float radius, float softness) {
@@ -37,9 +42,9 @@ void main() {
 
   // calcular glow de líneas
   float glow = 0.0;
-  float softness = LINE_SOFTNESS / sqrt(float(lineCount));
+  float softness = LINE_SOFTNESS;
 
-  for (int i = 0; i < 600; i++) {
+  for (int i = 0; i < MAX_LINES; i++) {
     if (i >= lineCount)
       break;
     vec2 start = vec2(lines[i * 4], lines[i * 4 + 1]);
@@ -51,17 +56,16 @@ void main() {
   // calcular glow de cabezas
   float headGlow = 0.0;
   float innerHeadGlow = 0.0;
-  for (int i = 0; i < 50; i++) {
+  for (int i = 0; i < MAX_HEADS; i++) {
     if (i >= headCount)
       break;
     vec2 headPos = vec2(heads[i * 2], heads[i * 2 + 1]);
     float dist = length(pixelCoord - headPos);
-    headGlow += HEAD_GLOW_STRENGTH / (dist + HEAD_GLOW_MIN_DIST);
-    // círculo interior más pequeño
-    innerHeadGlow += HEAD_GLOW_STRENGTH / (dist * 8.0 + HEAD_GLOW_MIN_DIST);
+    headGlow += HEAD_GLOW_STRENGTH / (dist + 0.001);
+    innerHeadGlow += HEAD_GLOW_STRENGTH / (dist * 8.0 + 0.001);
   }
-  headGlow = min(headGlow, 0.5);
-  innerHeadGlow = min(innerHeadGlow, 1.0);
+  headGlow = min(headGlow, HEAD_GLOW_MAX);
+  innerHeadGlow = min(innerHeadGlow, HEAD_GLOW_INNER_MAX);
 
   // mezclar colores
   vec3 baseColor = mix(BASE_COLOR, GLOW_COLOR, glow);
