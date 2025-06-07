@@ -20,7 +20,7 @@ class CountDown1State {
     // fade in con gsap
     this.opacityTween = gsap.to(this, {
       opacity: 255,
-      duration: 1,
+      duration: 0.8,
       onComplete: () => {
         this.isCounting = true
         this.animateCount()

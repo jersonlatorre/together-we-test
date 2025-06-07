@@ -13,6 +13,7 @@ class IntroState {
 
   draw() {
     push()
+    tint(255, 255)
     image(introImg, 0, 0, width, height)
     pop()
   }

@@ -23,7 +23,8 @@ const float LINE_SOFTNESS = 5.0;
 const float HEAD_GLOW_STRENGTH = 10.0;
 const float HEAD_GLOW_MAX = 0.5;
 const float HEAD_GLOW_INNER_MAX = 0.5;
-const vec3 BASE_COLOR = vec3(0.0, 0.0, 0.1);
+const float LINE_GLOW_MAX = 5.0;
+const vec3 BACKGROUND_COLOR = vec3(0.0, 0.0, 0.1);
 const vec3 GLOW_COLOR = vec3(0.8, 0.8, 1.0);                // #CCCCFF
 const vec3 HEAD_COLOR = vec3(0.8, 0.8, 1.0);                // #CCCCFF
 const vec3 HEAD_COLOR_INNER = vec3(0.9176, 0.9137, 0.8431); // #EAE9D7
@@ -51,7 +52,7 @@ void main() {
     vec2 end = vec2(lines[i * 4 + 2], lines[i * 4 + 3]);
     glow += segmentGlow(pixelCoord, start, end, 0.0, softness);
   }
-  glow = min(glow, 10.5);
+  glow = min(glow, LINE_GLOW_MAX);
 
   // calcular glow de cabezas
   float headGlow = 0.0;
@@ -68,7 +69,9 @@ void main() {
   innerHeadGlow = min(innerHeadGlow, HEAD_GLOW_INNER_MAX);
 
   // mezclar colores
-  vec3 baseColor = mix(BASE_COLOR, GLOW_COLOR, glow);
+  vec3 gradientColor =
+      mix(BACKGROUND_COLOR * 2.5, BACKGROUND_COLOR, vTexCoord.y);
+  vec3 baseColor = mix(gradientColor, GLOW_COLOR, glow);
   vec3 finalColor = mix(baseColor, HEAD_COLOR, headGlow);
   finalColor = mix(finalColor, HEAD_COLOR_INNER, innerHeadGlow);
 
