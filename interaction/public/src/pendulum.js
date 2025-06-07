@@ -49,8 +49,8 @@ class Pendulum {
 
   draw() {
     // Dibujar el círculo del péndulo
-    noStroke()
-    fill('#5555aa88')
-    circle(this.bob.x, this.bob.y, this.length * 0.5)
+    // noStroke()
+    // fill('#5555aa88')
+    // circle(this.bob.x, this.bob.y, this.length * 0.5)
   }
 }
