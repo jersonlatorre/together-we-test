@@ -37,6 +37,7 @@ class VideoManager {
       const devices = await navigator.mediaDevices.enumerateDevices()
       const videoDevices = devices.filter((device) => device.kind === 'videoinput')
 
+      console.log('cameraIndex configurado:', CONFIG.video.cameraIndex)
       console.log(
         'dispositivos de video encontrados:',
         videoDevices.map((d, i) => ({ id: d.deviceId, label: d.label, index: i }))
@@ -51,6 +52,8 @@ class VideoManager {
           deviceId: videoDevices[CONFIG.video.cameraIndex]?.deviceId || undefined,
         },
       }
+
+      console.log('constraints usados:', constraints)
 
       this.video = createCapture(VIDEO, constraints)
       this.video.size(CONFIG.video.width, CONFIG.video.height)
