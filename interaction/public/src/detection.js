@@ -48,9 +48,15 @@ class Detection {
   }
 
   async initShader() {
-    // crear las capas gráficas primero
-    this.shaderLayer = createGraphics(width * pixelDensity(), height * pixelDensity(), WEBGL)
+    // obtener el pixelDensity del canvas principal
+    const mainPixelDensity = pixelDensity()
+    
+    // crear las capas gráficas con el mismo pixelDensity que el canvas principal
+    this.shaderLayer = createGraphics(width, height, WEBGL)
+    this.shaderLayer.pixelDensity(mainPixelDensity)
+    
     this.effectsLayer = createGraphics(width, height)
+    this.effectsLayer.pixelDensity(mainPixelDensity)
 
     // cargar el shader con timestamp para evitar caché
     const timestamp = new Date().getTime()
@@ -98,14 +104,11 @@ class Detection {
     this.shader.setUniform('headOpacity', this.headOpacity)
     this.shader.setUniform('headGlowStrength', this.headGlowStrength)
 
-    // dibujar un rectángulo para activar el shader
-    this.shaderLayer.rect(0, 0, width, height)
+    // dibujar un rectángulo centrado para activar el shader en WEBGL
+    this.shaderLayer.rect(-width/2, -height/2, width, height)
 
-    // mostrar la capa en el canvas principal
-    push()
-    translate((-width * pixelDensity()) / 2, (-height * pixelDensity()) / 2)
+    // mostrar la capa en el canvas principal sin transformaciones adicionales
     image(this.shaderLayer, 0, 0)
-    pop()
   }
 
   drawChallenge1State() {
@@ -127,14 +130,11 @@ class Detection {
     this.shader.setUniform('headOpacity', this.headOpacity)
     this.shader.setUniform('headGlowStrength', this.headGlowStrength)
 
-    // dibujar un rectángulo para activar el shader
-    this.shaderLayer.rect(0, 0, width, height)
+    // dibujar un rectángulo centrado para activar el shader en WEBGL
+    this.shaderLayer.rect(-width/2, -height/2, width, height)
 
     // mostrar la capa en el canvas principal
-    push()
-    translate((-width * pixelDensity()) / 2, (-height * pixelDensity()) / 2)
     image(this.shaderLayer, 0, 0)
-    pop()
   }
 
   drawChallenge2State() {
@@ -156,14 +156,11 @@ class Detection {
     this.shader.setUniform('headOpacity', this.headOpacity)
     this.shader.setUniform('headGlowStrength', this.headGlowStrength)
 
-    // dibujar un rectángulo para activar el shader
-    this.shaderLayer.rect(0, 0, width, height)
+    // dibujar un rectángulo centrado para activar el shader en WEBGL
+    this.shaderLayer.rect(-width/2, -height/2, width, height)
 
     // mostrar la capa en el canvas principal
-    push()
-    translate((-width * pixelDensity()) / 2, (-height * pixelDensity()) / 2)
     image(this.shaderLayer, 0, 0)
-    pop()
 
     // dibujar el mst encima del shader
     this.mstGraph.draw(headData, this.dimensions)

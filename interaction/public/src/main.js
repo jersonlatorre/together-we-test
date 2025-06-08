@@ -12,6 +12,8 @@ let challenge2CompletedImg
 let loadingImg
 
 async function setup() {
+  pixelDensity(1)
+
   fontLexend = await loadFont('../assets/fonts/LexendGiga-SemiBold.ttf')
   fontMorganite = await loadFont('../assets/fonts/Morganite-Bold.ttf')
   introImg = await loadImage('../assets/images/1_intro.png')
