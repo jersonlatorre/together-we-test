@@ -1,7 +1,7 @@
 class Challenge1CompletedState {
   constructor() {
-    this.count = 5
-    this.lastUpdate = millis()
+    this.duration = 3
+    this.startTime = millis()
     this.init()
   }
 
@@ -18,11 +18,9 @@ class Challenge1CompletedState {
     image(challenge1CompletedImg, 0, 0, width, height)
     pop()
 
-    // decrementar contador cada segundo
-    const currentTime = millis()
-    if (currentTime - this.lastUpdate >= 1000) {
-      this.count = max(0, this.count - 1)
-      this.lastUpdate = currentTime
+    if (millis() - this.startTime >= this.duration * 1000) {
+      state = new Challenge2State()
+      state.init()
     }
   }
 }

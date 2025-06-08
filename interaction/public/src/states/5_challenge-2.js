@@ -9,7 +9,7 @@ class Challenge2State {
   static APPEARING_DURATION = 1
   static DISAPPEARING_DURATION = 1
   static DELAY_BEFORE_DISAPPEARING = 1000
-  static GAMEPLAY_DURATION = 5
+  static GAMEPLAY_DURATION = 10
   static TIMER_CIRCLE_SIZE = 60
   static TIMER_CIRCLE_OFFSET = 60
 
@@ -38,7 +38,7 @@ class Challenge2State {
       size: Challenge2State.TIMER_CIRCLE_SIZE,
       duration: Challenge2State.GAMEPLAY_DURATION,
       onComplete: () => {
-        // this.state = Challenge2States.COMPLETED
+        state = new Challenge2CompletedState()
       },
     })
 

@@ -14,7 +14,7 @@ class Challenge1State {
   static SHAPE_DISAPPEARING_DURATION = 2
   static DELAY_BEFORE_DISAPPEARING = 1000
   static DELAY_BEFORE_SHAPE_APPEARING = 1000
-  static GAMEPLAY_DURATION = 5
+  static GAMEPLAY_DURATION = 10
   static TIMER_CIRCLE_SIZE = 60
   static TIMER_CIRCLE_OFFSET = 60
 
@@ -80,7 +80,7 @@ class Challenge1State {
         this.shapeDisappearing()
         break
       case Challenge1States.COMPLETED:
-        // this.completed()
+        state = new Challenge1CompletedState()
         break
     }
   }
@@ -153,6 +153,7 @@ class Challenge1State {
 
     if (this.shapePercentageTween) return
 
+    // tween para que la línea aparezca
     this.shapePercentageTween = gsap.to(this, {
       shapePercentage: 1,
       duration: Challenge1State.SHAPE_APPEARING_DURATION,
@@ -166,14 +167,6 @@ class Challenge1State {
         this.countdown.start()
       },
     })
-
-    if (!this.timerOpacityTween) {
-      this.timerOpacityTween = gsap.to(this, {
-        timerOpacity: 255,
-        duration: Challenge1State.SHAPE_APPEARING_DURATION,
-        ease: 'power2.out',
-      })
-    }
   }
 
   gameplay() {
