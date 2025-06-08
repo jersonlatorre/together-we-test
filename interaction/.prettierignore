@@ -1,1 +1,3 @@
-**/*.frag 
+**/*.frag
+/node_modules
+/interaction/public/lib
