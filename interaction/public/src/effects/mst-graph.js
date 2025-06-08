@@ -6,7 +6,7 @@ class MSTGraph {
     this.randomPoints = []
     this.screenOffset = 200
     this.minDistance = 150
-    
+
     // fade in properties
     this.opacity = 0
     this.fadeInTween = null
@@ -47,7 +47,7 @@ class MSTGraph {
     this.fadeInTween = gsap.to(this, {
       opacity: 1,
       duration: 2,
-      ease: 'power2.out'
+      ease: 'power2.out',
     })
   }
 
@@ -148,7 +148,7 @@ class MSTGraph {
   draw(headData, dimensions) {
     // no dibujar si la opacidad es 0
     if (this.opacity === 0) return
-    
+
     const { scaledWidth, scaledHeight, x, y } = dimensions
 
     // actualizar posiciones de puntos aleatorios

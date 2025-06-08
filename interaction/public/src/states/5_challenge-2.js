@@ -126,7 +126,7 @@ class Challenge2State {
         this.delayTimeout && clearTimeout(this.delayTimeout)
         this.delayTimeout = null
         detection.goToChallenge2State()
-        
+
         detection.mstGraph.startFadeIn()
         detection.mstGraph.generateRandomPoints()
       },

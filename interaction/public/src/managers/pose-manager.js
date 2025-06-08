@@ -4,7 +4,7 @@ class PoseManager {
     this.CONFIDENCE_THRESHOLD = 0.3
     this.lastRequestTime = 0
     this.skeletonData = []
-    
+
     // datos procesados
     this.lineData = []
     this.headData = []
@@ -88,4 +88,4 @@ class PoseManager {
   hasValidData() {
     return this.skeletonData && this.skeletonData.length > 0
   }
-} 
+}
