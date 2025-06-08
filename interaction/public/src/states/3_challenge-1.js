@@ -3,16 +3,18 @@ const Challenge1States = {
   INITIAL_MESSAGE_DISAPPEARING: 1,
   SHAPE_APPEARING: 2,
   GAMEPLAY: 3,
-  COMPLETED: 4,
+  SHAPE_DISAPPEARING: 4,
+  COMPLETED: 5,
 }
 
 class Challenge1State {
-  static APPEARING_DURATION = 0.5 // 1
-  static DISAPPEARING_DURATION = 0.5 // 1
-  static SHAPE_APPEARING_DURATION = 0.5 // 3
-  static DELAY_BEFORE_DISAPPEARING = 200 // 1000
-  static DELAY_BEFORE_SHAPE_APPEARING = 200 // 1000
-  static GAMEPLAY_DURATION = 5 // 1
+  static APPEARING_DURATION = 1
+  static DISAPPEARING_DURATION = 1
+  static SHAPE_APPEARING_DURATION = 3
+  static SHAPE_DISAPPEARING_DURATION = 2
+  static DELAY_BEFORE_DISAPPEARING = 1000
+  static DELAY_BEFORE_SHAPE_APPEARING = 1000
+  static GAMEPLAY_DURATION = 5
   static TIMER_CIRCLE_SIZE = 60
   static TIMER_CIRCLE_OFFSET = 60
 
@@ -26,8 +28,6 @@ class Challenge1State {
     this.opacityAppearing = 0
     this.opacityDisappearing = 255
     this.shapePercentage = 0
-    this.angle = 360
-    this.timerTween = null
     this.timerOpacity = 0
 
     // tweens
@@ -41,11 +41,25 @@ class Challenge1State {
     this.initialMessageDisappearingTimeout = null
     this.shapePercentageTimeout = null
 
+    // countdown
+    this.countdown = new Countdown({
+      x: width - Challenge1State.TIMER_CIRCLE_OFFSET,
+      y: Challenge1State.TIMER_CIRCLE_OFFSET,
+      size: Challenge1State.TIMER_CIRCLE_SIZE,
+      duration: Challenge1State.GAMEPLAY_DURATION,
+      onComplete: () => {
+        this.state = Challenge1States.SHAPE_DISAPPEARING
+      }
+    })
+
     this.init()
   }
 
   init() {
     this.state = Challenge1States.INITIAL_MESSAGE_APPEARING
+    this.delayTimeout = setTimeout(() => {
+      detection.goToChallenge1State()
+    }, 1000)
   }
 
   draw() {
@@ -61,6 +75,9 @@ class Challenge1State {
         break
       case Challenge1States.GAMEPLAY:
         this.gameplay()
+        break
+      case Challenge1States.SHAPE_DISAPPEARING:
+        this.shapeDisappearing()
         break
       case Challenge1States.COMPLETED:
         this.completed()
@@ -143,6 +160,7 @@ class Challenge1State {
         this.shapePercentageTimeout && clearTimeout(this.shapePercentageTimeout)
         this.shapePercentageTimeout = null
         this.state = Challenge1States.GAMEPLAY
+        this.countdown.start()
       },
     })
 
@@ -150,7 +168,7 @@ class Challenge1State {
       this.timerOpacityTween = gsap.to(this, {
         timerOpacity: 255,
         duration: Challenge1State.SHAPE_APPEARING_DURATION,
-        ease: 'power2.out'
+        ease: 'power2.out',
       })
     }
   }
@@ -162,39 +180,39 @@ class Challenge1State {
     line(this.shapeStartX, height / 2, this.shapeEndX, height / 2)
     pop()
 
-    // timer
-    push()
-    translate(width - Challenge1State.TIMER_CIRCLE_OFFSET, Challenge1State.TIMER_CIRCLE_OFFSET)
-    scale(-1, 1)
-    fill('#00FF4F')
-    noStroke()
-    arc(0, 0, Challenge1State.TIMER_CIRCLE_SIZE, Challenge1State.TIMER_CIRCLE_SIZE, -HALF_PI, radians(this.angle - 90), PIE)
-    pop()
-
-    if (!this.timerTween) {
-      this.timerTween = gsap.to(this, {
-        angle: 0,
-        duration: Challenge1State.GAMEPLAY_DURATION,
-        ease: 'none',
-        onComplete: () => {
-          this.timerTween && this.timerTween.kill()
-          this.timerTween = null
-          this.state = Challenge1States.COMPLETED
-        },
-      })
-    }
+    this.countdown.draw()
   }
 
-  completed() {}
+  shapeDisappearing() {
+    push()
+    stroke(226, 231, 213, 50)
+    strokeWeight(50)
+    line(this.shapeStartX, height / 2, this.shapeStartX + (this.shapeEndX - this.shapeStartX) * this.shapePercentage, height / 2)
+    pop()
+
+    if (this.shapePercentageTween) return
+
+    this.shapePercentageTween = gsap.to(this, {
+      shapePercentage: 0,
+      duration: Challenge1State.SHAPE_DISAPPEARING_DURATION,
+      ease: 'power2.in',
+      onComplete: () => {
+        this.shapePercentageTween && this.shapePercentageTween.kill()
+        this.shapePercentageTween = null
+        this.state = Challenge1States.COMPLETED
+      },
+    })
+  }
 
   remove() {
     this.opacityAppearingTween && this.opacityAppearingTween.kill()
     this.opacityDisappearingTween && this.opacityDisappearingTween.kill()
-    this.timerTween && this.timerTween.kill()
     this.timerOpacityTween && this.timerOpacityTween.kill()
     this.initialMessageAppearingTimeout && clearTimeout(this.initialMessageAppearingTimeout)
     this.initialMessageDisappearingTimeout && clearTimeout(this.initialMessageDisappearingTimeout)
     gsap.killTweensOf(this)
-    return true
+    this.delayTimeout && clearTimeout(this.delayTimeout)
+    this.delayTimeout = null
+    this.countdown.remove()
   }
 }

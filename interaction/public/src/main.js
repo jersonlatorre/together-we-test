@@ -40,11 +40,13 @@ async function keyPressed() {
   if (key === '1') {
     state.remove()
     state = new IntroState()
+    detection.goToInitState()
   }
 
   if (key === '2') {
     state.remove()
     state = new CountDown1State()
+    detection.goToInitState()
   }
 
   if (key === '3') {
@@ -60,6 +62,7 @@ async function keyPressed() {
   if (key === '5') {
     state.remove()
     state = new Challenge2State()
+    detection.goToChallenge2State()
   }
 
   if (key === '6') {
