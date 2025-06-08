@@ -28,13 +28,11 @@ class Challenge1State {
     this.opacityAppearing = 0
     this.opacityDisappearing = 255
     this.shapePercentage = 0
-    this.timerOpacity = 0
 
     // tweens
     this.opacityAppearingTween = null
     this.opacityDisappearingTween = null
     this.shapePercentageTween = null
-    this.timerOpacityTween = null
 
     // timeouts
     this.initialMessageAppearingTimeout = null
@@ -80,7 +78,9 @@ class Challenge1State {
         this.shapeDisappearing()
         break
       case Challenge1States.COMPLETED:
+        state.remove()
         state = new Challenge1CompletedState()
+        state.init()
         break
     }
   }
@@ -98,7 +98,7 @@ class Challenge1State {
       opacityAppearing: 255,
       duration: Challenge1State.APPEARING_DURATION,
       onComplete: () => {
-        this.initialMessageTimeout = setTimeout(() => {
+        this.initialMessageAppearingTimeout = setTimeout(() => {
           this.opacityAppearingTween && this.opacityAppearingTween.kill()
           this.opacityAppearingTween = null
           this.initialMessageAppearingTimeout && clearTimeout(this.initialMessageAppearingTimeout)
@@ -141,14 +141,6 @@ class Challenge1State {
     stroke(226, 231, 213, 50)
     strokeWeight(50)
     line(this.shapeStartX, height / 2, this.shapeStartX + (this.shapeEndX - this.shapeStartX) * this.shapePercentage, height / 2)
-    pop()
-
-    // timer circle
-    push()
-    translate(width - Challenge1State.TIMER_CIRCLE_OFFSET, Challenge1State.TIMER_CIRCLE_OFFSET)
-    fill(0, 255, 79, this.timerOpacity)
-    noStroke()
-    circle(0, 0, Challenge1State.TIMER_CIRCLE_SIZE)
     pop()
 
     if (this.shapePercentageTween) return
@@ -203,14 +195,13 @@ class Challenge1State {
   remove() {
     this.opacityAppearingTween && this.opacityAppearingTween.kill()
     this.opacityDisappearingTween && this.opacityDisappearingTween.kill()
-    this.timerOpacityTween && this.timerOpacityTween.kill()
+    this.shapePercentageTween && this.shapePercentageTween.kill()
     this.initialMessageAppearingTimeout && clearTimeout(this.initialMessageAppearingTimeout)
     this.initialMessageDisappearingTimeout && clearTimeout(this.initialMessageDisappearingTimeout)
     this.waitForShapeAppearingTimeout && clearTimeout(this.waitForShapeAppearingTimeout)
-    this.waitForShapeAppearingTimeout = null
-    gsap.killTweensOf(this)
-    this.delayTimeout && clearTimeout(this.delayTimeout)
-    this.delayTimeout = null
+    this.shapePercentageTimeout && clearTimeout(this.shapePercentageTimeout)
     this.countdown.remove()
+    gsap.killTweensOf(this)
+    return true
   }
 }

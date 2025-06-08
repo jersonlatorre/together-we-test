@@ -38,7 +38,7 @@ class Challenge2State {
       size: Challenge2State.TIMER_CIRCLE_SIZE,
       duration: Challenge2State.GAMEPLAY_DURATION,
       onComplete: () => {
-        state = new Challenge2CompletedState()
+        this.state = Challenge2States.COMPLETED
       },
     })
 
@@ -63,7 +63,9 @@ class Challenge2State {
         this.gameplay()
         break
       case Challenge2States.COMPLETED:
-        this.completed()
+        state.remove()
+        state = new Challenge2CompletedState()
+        state.init()
         break
     }
   }
