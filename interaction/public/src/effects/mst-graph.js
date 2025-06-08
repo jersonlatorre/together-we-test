@@ -6,6 +6,10 @@ class MSTGraph {
     this.randomPoints = []
     this.screenOffset = 200
     this.minDistance = 150
+    
+    // fade in properties
+    this.opacity = 0
+    this.fadeInTween = null
   }
 
   generateRandomPoints() {
@@ -36,6 +40,25 @@ class MSTGraph {
         currentY: 0,
       })
     }
+  }
+
+  startFadeIn() {
+    this.fadeInTween?.kill()
+    this.fadeInTween = gsap.to(this, {
+      opacity: 1,
+      duration: 2,
+      ease: 'power2.out'
+    })
+  }
+
+  resetOpacity() {
+    this.fadeInTween?.kill()
+    this.opacity = 0
+  }
+
+  remove() {
+    this.fadeInTween?.kill()
+    gsap.killTweensOf(this)
   }
 
   findMST(points) {
@@ -123,6 +146,9 @@ class MSTGraph {
   }
 
   draw(headData, dimensions) {
+    // no dibujar si la opacidad es 0
+    if (this.opacity === 0) return
+    
     const { scaledWidth, scaledHeight, x, y } = dimensions
 
     // actualizar posiciones de puntos aleatorios
@@ -155,25 +181,25 @@ class MSTGraph {
     // dibujar directamente en el canvas principal
     push()
 
-    // dibujar aristas del mst
+    // dibujar aristas del mst con opacidad aplicada
     for (const edge of mstEdges) {
       if (!edge.fromPoint.isRandom || !edge.toPoint.isRandom) {
         let distance = dist(edge.fromPoint.x, edge.fromPoint.y, edge.toPoint.x, edge.toPoint.y)
-        let opacity = map(distance, 0, this.minDistance, 200, 30)
+        let opacity = map(distance, 0, this.minDistance, 200, 30) * this.opacity
         stroke(255, 255, 255, opacity)
         strokeWeight(1)
       } else {
-        stroke(255, 255, 255, 30)
+        stroke(255, 255, 255, 30 * this.opacity)
         strokeWeight(1)
       }
       line(edge.fromPoint.x, edge.fromPoint.y, edge.toPoint.x, edge.toPoint.y)
     }
 
-    // dibujar vértices optimizado
+    // dibujar vértices optimizado con opacidad aplicada
     noStroke()
 
     // dibujar puntos aleatorios
-    fill('#EAE9D7')
+    fill(234, 233, 215, 255 * this.opacity)
     const headCount = headData?.length || 0
     for (let i = headCount; i < points.length; i++) {
       const point = points[i]
@@ -182,7 +208,7 @@ class MSTGraph {
 
     // dibujar puntos de cabezas si existen
     if (headCount > 0) {
-      fill('white')
+      fill(255, 255, 255, 255 * this.opacity)
       for (let i = 0; i < headCount; i++) {
         const point = points[i]
         circle(point.x, point.y, 10)

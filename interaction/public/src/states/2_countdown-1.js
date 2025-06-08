@@ -13,7 +13,7 @@ class CountDown1State {
         this.countdown.remove()
         state = new Challenge1State()
         state.init()
-      }
+      },
     })
     this.init()
   }

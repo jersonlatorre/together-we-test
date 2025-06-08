@@ -1,13 +1,5 @@
 class Countdown {
-  constructor({
-    x = 0,
-    y = 0,
-    size = 100,
-    duration = 5,
-    onComplete = () => {},
-    color = '#00FF4F',
-    offset = 0
-  }) {
+  constructor({ x = 0, y = 0, size = 100, duration = 5, onComplete = () => {}, color = '#00FF4F', offset = 0 }) {
     this.x = x
     this.y = y
     this.size = size
@@ -28,7 +20,7 @@ class Countdown {
       duration: 0.8,
       onComplete: () => {
         this.animate()
-      }
+      },
     })
   }
 
@@ -41,7 +33,7 @@ class Countdown {
         this.tween?.kill()
         this.tween = null
         this.onComplete()
-      }
+      },
     })
   }
 
@@ -60,4 +52,4 @@ class Countdown {
     this.opacityTween?.kill()
     gsap.killTweensOf(this)
   }
-} 
+}

@@ -170,6 +170,14 @@ class Detection {
   }
 
   // transitions
+  goToInitStateWithNoDelay() {
+    this.lineOpacity = 0.5
+    this.lineGlowStrength = 4.0
+    this.headOpacity = 0.7
+    this.headGlowStrength = 2.0
+    this.state = DetectionStates.INIT
+  }
+
   goToInitState() {
     this.shaderTween?.kill()
     this.shaderTween = gsap.to(this, {
@@ -183,6 +191,7 @@ class Detection {
   }
 
   goToChallenge1State() {
+    console.log('goToChallenge1State')
     this.shaderTween?.kill()
     this.shaderTween = gsap.to(this, {
       lineOpacity: 0.05,
@@ -190,7 +199,6 @@ class Detection {
       headOpacity: 1.0,
       headGlowStrength: 6.0,
       duration: 2,
-      delay: 2,
     })
     this.state = DetectionStates.CHALLENGE_1
   }
@@ -203,7 +211,6 @@ class Detection {
       headOpacity: 1.0,
       headGlowStrength: 6.0,
       duration: 2,
-      delay: 2,
     })
     this.state = DetectionStates.CHALLENGE_2
   }

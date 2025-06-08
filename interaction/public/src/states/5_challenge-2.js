@@ -20,10 +20,12 @@ class Challenge2State {
     // values
     this.opacityAppearing = 0
     this.opacityDisappearing = 255
+    this.backgroundOpacity = 255
 
     // tweens
     this.opacityAppearingTween = null
     this.opacityDisappearingTween = null
+    this.backgroundOpacityTween = null
 
     // timeouts
     this.initialMessageAppearingTimeout = null
@@ -40,15 +42,13 @@ class Challenge2State {
       },
     })
 
+    detection.goToInitStateWithNoDelay()
+
     this.init()
   }
 
   init() {
     this.state = Challenge2States.INITIAL_MESSAGE_APPEARING
-    this.delayTimeout = setTimeout(() => {
-      detection.goToChallenge2State()
-      detection.mstGraph.generateRandomPoints()
-    }, 1000)
   }
 
   draw() {
@@ -69,6 +69,13 @@ class Challenge2State {
   }
 
   initialMessageAppearing() {
+    // fondo negro fijo
+    push()
+    fill(0)
+    rect(0, 0, width, height)
+    pop()
+
+    // imagen que aparece
     push()
     tint(255, this.opacityAppearing)
     image(challenge2Img, 0, 0, width, height)
@@ -92,6 +99,13 @@ class Challenge2State {
   }
 
   initialMessageDisappearing() {
+    // fondo negro que desaparece
+    push()
+    fill(0, this.backgroundOpacity)
+    rect(0, 0, width, height)
+    pop()
+
+    // imagen que desaparece
     push()
     tint(255, this.opacityDisappearing)
     image(challenge2Img, 0, 0, width, height)
@@ -105,9 +119,22 @@ class Challenge2State {
       onComplete: () => {
         this.opacityDisappearingTween && this.opacityDisappearingTween.kill()
         this.opacityDisappearingTween = null
+        this.backgroundOpacityTween && this.backgroundOpacityTween.kill()
+        this.backgroundOpacityTween = null
         this.state = Challenge2States.GAMEPLAY
         this.countdown.start()
+        this.delayTimeout && clearTimeout(this.delayTimeout)
+        this.delayTimeout = null
+        detection.goToChallenge2State()
+        
+        detection.mstGraph.startFadeIn()
+        detection.mstGraph.generateRandomPoints()
       },
+    })
+
+    this.backgroundOpacityTween = gsap.to(this, {
+      backgroundOpacity: 0,
+      duration: Challenge2State.DISAPPEARING_DURATION,
     })
   }
 
@@ -118,6 +145,7 @@ class Challenge2State {
   remove() {
     this.opacityAppearingTween && this.opacityAppearingTween.kill()
     this.opacityDisappearingTween && this.opacityDisappearingTween.kill()
+    this.backgroundOpacityTween && this.backgroundOpacityTween.kill()
     this.initialMessageAppearingTimeout && clearTimeout(this.initialMessageAppearingTimeout)
     this.initialMessageDisappearingTimeout && clearTimeout(this.initialMessageDisappearingTimeout)
     this.delayTimeout && clearTimeout(this.delayTimeout)
