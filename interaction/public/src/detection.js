@@ -38,7 +38,7 @@ class Detection {
       ANKLE_R: 16,
     }
 
-    this.CONFIDENCE_THRESHOLD = 0.1
+    this.CONFIDENCE_THRESHOLD = 0.3
   }
 
   async init() {
@@ -237,17 +237,14 @@ class Detection {
   // función helper para verificar si un esqueleto es válido para procesamiento
   isValidSkeleton(kps) {
     if (!kps) return false
-    
+
     const { SHOULDER_L, SHOULDER_R } = this.KEYPOINTS
-    
+
     // verificar que existan los hombros (mínimo requerido)
     if (!kps[SHOULDER_L] || !kps[SHOULDER_R]) return false
-    
+
     // verificar confianza mínima para hombros
-    return (
-      kps[SHOULDER_L].confidence > this.CONFIDENCE_THRESHOLD &&
-      kps[SHOULDER_R].confidence > this.CONFIDENCE_THRESHOLD
-    )
+    return kps[SHOULDER_L].confidence > this.CONFIDENCE_THRESHOLD && kps[SHOULDER_R].confidence > this.CONFIDENCE_THRESHOLD
   }
 
   processPoseData() {
@@ -449,11 +446,7 @@ class Detection {
 
     // línea de cabeza a nuca (solo si hay cabeza)
     if (kps[KP.HEAD] && kps[KP.HEAD].confidence > this.CONFIDENCE_THRESHOLD) {
-      bodyLines.push([
-        [kps[KP.HEAD].x, kps[KP.HEAD].y], 
-        [nape.x, nape.y], 
-        Math.min(kps[KP.HEAD].confidence, nape.conf)
-      ])
+      bodyLines.push([[kps[KP.HEAD].x, kps[KP.HEAD].y], [nape.x, nape.y], Math.min(kps[KP.HEAD].confidence, nape.conf)])
     }
 
     // líneas de extremidades (con umbral normal)

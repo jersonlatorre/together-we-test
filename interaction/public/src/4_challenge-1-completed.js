@@ -15,15 +15,7 @@ class Challenge1CompletedState {
 
   draw() {
     push()
-    fill(0, 0, 0, 180)
-    rect(0, 0, width, height)
-
-    fill('#E2E7D5')
-    textFont(fontLexend)
-    textSize(20)
-    textAlign(CENTER)
-    text('¡LO LOGRAMOS! \n¿QUÉ PASARÍA SI SEGUIMOS TRABAJANDO JUNTOS?', width / 2, height / 2 - 30)
-    text(this.count, width / 2, height / 2 + 30)
+    image(challenge1CompletedImg, 0, 0, width, height)
     pop()
 
     // decrementar contador cada segundo
