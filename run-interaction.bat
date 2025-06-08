@@ -1,5 +1,5 @@
 @echo off
 
 cd interaction
-npm install
-npm run dev 
+call npm install
+call npm run dev 
