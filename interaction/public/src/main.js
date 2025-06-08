@@ -21,14 +21,13 @@ async function setup() {
   challenge2Img = await loadImage('../assets/images/5_challenge-2.png')
   challenge2CompletedImg = await loadImage('../assets/images/6_challenge-2-completed.png')
   loadingImg = await loadImage('../assets/images/7_loading.png')
-  
+
   createCanvas(2352 * FACTOR, 840 * FACTOR)
   frameRate(24)
 
   detection = new Detection()
   state = new IntroState()
 
-  // inicializar detección
   await detection.init()
 }
 
