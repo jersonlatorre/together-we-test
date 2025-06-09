@@ -50,11 +50,11 @@ class Detection {
   async initShader() {
     // obtener el pixelDensity del canvas principal
     const mainPixelDensity = pixelDensity()
-    
+
     // crear las capas gráficas con el mismo pixelDensity que el canvas principal
     this.shaderLayer = createGraphics(width, height, WEBGL)
     this.shaderLayer.pixelDensity(mainPixelDensity)
-    
+
     this.effectsLayer = createGraphics(width, height)
     this.effectsLayer.pixelDensity(mainPixelDensity)
 
@@ -105,7 +105,7 @@ class Detection {
     this.shader.setUniform('headGlowStrength', this.headGlowStrength)
 
     // dibujar un rectángulo centrado para activar el shader en WEBGL
-    this.shaderLayer.rect(-width/2, -height/2, width, height)
+    this.shaderLayer.rect(-width / 2, -height / 2, width, height)
 
     // mostrar la capa en el canvas principal sin transformaciones adicionales
     image(this.shaderLayer, 0, 0)
@@ -131,10 +131,11 @@ class Detection {
     this.shader.setUniform('headGlowStrength', this.headGlowStrength)
 
     // dibujar un rectángulo centrado para activar el shader en WEBGL
-    this.shaderLayer.rect(-width/2, -height/2, width, height)
+    this.shaderLayer.rect(-width / 2, -height / 2, width, height)
 
     // mostrar la capa en el canvas principal
     image(this.shaderLayer, 0, 0)
+    this.starHeads.draw(headData, this.dimensions)
   }
 
   drawChallenge2State() {
@@ -157,7 +158,7 @@ class Detection {
     this.shader.setUniform('headGlowStrength', this.headGlowStrength)
 
     // dibujar un rectángulo centrado para activar el shader en WEBGL
-    this.shaderLayer.rect(-width/2, -height/2, width, height)
+    this.shaderLayer.rect(-width / 2, -height / 2, width, height)
 
     // mostrar la capa en el canvas principal
     image(this.shaderLayer, 0, 0)

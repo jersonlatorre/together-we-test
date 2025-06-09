@@ -4,7 +4,7 @@ const CONFIG = {
     width: 1920,
     height: 1080,
     path: '/assets/videos/demo-3.mp4',
-    inputSource: 'video', // video | webcam
+    inputSource: 'webcam', // video | webcam
     isWebcamFlipped: true,
     cameraIndex: 0,
   },
