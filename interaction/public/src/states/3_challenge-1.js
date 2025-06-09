@@ -10,7 +10,7 @@ const Challenge1States = {
 class Challenge1State {
   static APPEARING_DURATION = 2
   static DISAPPEARING_DURATION = 1
-  static SHAPE_APPEARING_DURATION = 3
+  static SHAPE_APPEARING_DURATION = 2
   static SHAPE_DISAPPEARING_DURATION = 2
   static DELAY_BEFORE_DISAPPEARING = 1000
   static DELAY_BEFORE_SHAPE_APPEARING = 1000
@@ -47,6 +47,7 @@ class Challenge1State {
       size: Challenge1State.TIMER_CIRCLE_SIZE,
       duration: Challenge1State.GAMEPLAY_DURATION,
       onComplete: () => {
+        console.log('countdown completed, changing to SHAPE_DISAPPEARING')
         this.state = Challenge1States.SHAPE_DISAPPEARING
       },
     })
@@ -61,6 +62,7 @@ class Challenge1State {
   }
 
   draw() {
+    console.log(this.state)
     switch (this.state) {
       case Challenge1States.INITIAL_MESSAGE_APPEARING:
         this.initialMessageAppearing()
@@ -81,7 +83,7 @@ class Challenge1State {
         state.remove()
         state = new Challenge1CompletedState()
         state.init()
-        break
+        return
     }
   }
 
@@ -107,7 +109,6 @@ class Challenge1State {
         }, Challenge1State.DELAY_BEFORE_DISAPPEARING)
       },
     })
-    return true
   }
 
   initialMessageDisappearing() {
@@ -151,6 +152,8 @@ class Challenge1State {
       duration: Challenge1State.SHAPE_APPEARING_DURATION,
       ease: 'power2.out',
       onComplete: () => {
+        // activar interacción de star-heads cuando termine la animación de la línea
+        detection.starHeads.canInteract = true
         this.countdown.start()
         this.shapePercentageTween && this.shapePercentageTween.kill()
         this.shapePercentageTween = null
@@ -180,6 +183,10 @@ class Challenge1State {
 
     if (this.shapePercentageTween) return
 
+    // resetear tamaño de star-heads y desactivar interacción
+    detection.starHeads.targetFactor = 1
+    detection.starHeads.canInteract = false
+
     // tween para que la línea desaparezca
     this.shapePercentageTween = gsap.to(this, {
       shapePercentage: 0,
@@ -202,6 +209,8 @@ class Challenge1State {
     this.waitForShapeAppearingTimeout && clearTimeout(this.waitForShapeAppearingTimeout)
     this.shapePercentageTimeout && clearTimeout(this.shapePercentageTimeout)
     this.countdown.remove()
+    detection.starHeads.targetFactor = 1
+    detection.starHeads.canInteract = false
     gsap.killTweensOf(this)
     return true
   }

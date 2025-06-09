@@ -19,6 +19,7 @@ class StarHeads {
     this.currentFactor = 1
     this.targetFactor = 1
     this.tweenSpeed = 0.1
+    this.canInteract = false
   }
 
   draw(headData, dimensions) {
@@ -33,8 +34,12 @@ class StarHeads {
 
     for (const head of headData) {
       const coords = this.calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y)
-      const distance = this.distanceToSegment(coords[0], coords[1], this.segment.x1, this.segment.y1, this.segment.x2, this.segment.y2)
-      this.targetFactor = distance < 50 ? 4 : 1
+      
+      if (this.canInteract) {
+        const distance = this.distanceToSegment(coords[0], coords[1], this.segment.x1, this.segment.y1, this.segment.x2, this.segment.y2)
+        this.targetFactor = distance < 50 ? 4 : 1
+      }
+      
       this.currentFactor = lerp(this.currentFactor, this.targetFactor, this.tweenSpeed)
       const radius = 20 * this.currentFactor
 

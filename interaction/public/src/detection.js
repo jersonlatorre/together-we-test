@@ -203,7 +203,7 @@ class Detection {
   goToChallenge2State() {
     this.shaderTween?.kill()
     this.shaderTween = gsap.to(this, {
-      lineOpacity: 0.03,
+      lineOpacity: 0.05,
       lineGlowStrength: 5.0,
       headOpacity: 1.0,
       headGlowStrength: 6.0,
