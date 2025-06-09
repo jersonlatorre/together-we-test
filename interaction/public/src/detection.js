@@ -188,7 +188,6 @@ class Detection {
   }
 
   goToChallenge1State() {
-    console.log('goToChallenge1State')
     this.shaderTween?.kill()
     this.shaderTween = gsap.to(this, {
       lineOpacity: 0.05,

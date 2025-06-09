@@ -14,7 +14,6 @@ class Countdown {
   }
 
   start() {
-    console.log('start animation')
     this.opacityTween = gsap.to(this, {
       opacity: 1,
       duration: 1,
@@ -25,7 +24,6 @@ class Countdown {
   }
 
   animate() {
-    console.log('animate')
     this.tween = gsap.to(this, {
       angle: 0,
       duration: this.duration,
@@ -52,5 +50,11 @@ class Countdown {
     this.tween?.kill()
     this.opacityTween?.kill()
     gsap.killTweensOf(this)
+    
+    // resetear estado
+    this.tween = null
+    this.opacityTween = null
+    this.angle = 360
+    this.opacity = 0
   }
 }

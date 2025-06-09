@@ -54,6 +54,7 @@ class VideoManager {
       }
 
       console.log('constraints usados:', constraints)
+      console.log('cámara seleccionada:', videoDevices[CONFIG.video.cameraIndex]?.label || 'por defecto')
 
       this.video = createCapture(VIDEO, constraints)
       this.video.size(CONFIG.video.width, CONFIG.video.height)

@@ -180,10 +180,11 @@ class Challenge1State {
 
     if (this.shapePercentageTween) return
 
+    // tween para que la línea desaparezca
     this.shapePercentageTween = gsap.to(this, {
       shapePercentage: 0,
       duration: Challenge1State.SHAPE_DISAPPEARING_DURATION,
-      ease: 'power2.in',
+      ease: 'power2.inOut',
       onComplete: () => {
         this.shapePercentageTween && this.shapePercentageTween.kill()
         this.shapePercentageTween = null

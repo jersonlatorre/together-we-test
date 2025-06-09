@@ -13,15 +13,13 @@ class Challenge2CompletedState {
     this.fadeInTween = gsap.to(this, {
       opacity: 255,
       duration: Challenge2CompletedState.FADE_IN_DURATION,
-      ease: 'power2.out'
+      ease: 'power2.out',
     })
-    return true
   }
 
   remove() {
     this.fadeInTween && this.fadeInTween.kill()
     gsap.killTweensOf(this)
-    return true
   }
 
   draw() {
@@ -35,11 +33,12 @@ class Challenge2CompletedState {
     if (currentTime - this.lastUpdate >= 1000) {
       this.count = max(0, this.count - 1)
       this.lastUpdate = currentTime
-      
+
       // cuando el contador llega a 0, volver al inicio
       if (this.count === 0) {
+        detection.goToInitStateWithNoDelay()
         state.remove()
-        state = new IntroState()
+        state = new LoadingState()
         state.init()
       }
     }

@@ -15,13 +15,11 @@ class Challenge1CompletedState {
       duration: Challenge1CompletedState.FADE_IN_DURATION,
       ease: 'power2.out'
     })
-    return true
   }
 
   remove() {
     this.fadeInTween && this.fadeInTween.kill()
     gsap.killTweensOf(this)
-    return true
   }
 
   draw() {
