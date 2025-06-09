@@ -118,7 +118,7 @@ class Challenge1State {
     pop()
 
     if (this.opacityDisappearingTween) return
-
+    
     this.opacityDisappearingTween = gsap.to(this, {
       opacityDisappearing: 0,
       duration: Challenge1State.DISAPPEARING_DURATION,
@@ -147,6 +147,8 @@ class Challenge1State {
     if (this.shapePercentageTween) return
 
     // tween para que la línea aparezca
+    // soundSwipe.play()
+
     this.shapePercentageTween = gsap.to(this, {
       shapePercentage: 1,
       duration: Challenge1State.SHAPE_APPEARING_DURATION,
@@ -186,6 +188,7 @@ class Challenge1State {
     // resetear tamaño de star-heads y desactivar interacción
     detection.starHeads.targetFactor = 1
     detection.starHeads.canInteract = false
+    // soundSwipeBack.play()
 
     // tween para que la línea desaparezca
     this.shapePercentageTween = gsap.to(this, {

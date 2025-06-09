@@ -1,8 +1,12 @@
 let state
 let detection
 const FACTOR = 1
+
+// fonts
 let fontLexend
 let fontMorganite
+
+// images
 let introImg
 let countdown1Img
 let challenge1Img
@@ -11,11 +15,17 @@ let challenge2Img
 let challenge2CompletedImg
 let loadingImg
 
+// sounds
+let soundSwipe
+let soundSwipeBack
 async function setup() {
   pixelDensity(1)
 
+  // load assets
   fontLexend = await loadFont('../assets/fonts/LexendGiga-SemiBold.ttf')
   fontMorganite = await loadFont('../assets/fonts/Morganite-Bold.ttf')
+
+  // load images
   introImg = await loadImage('../assets/images/1_intro.png')
   countdown1Img = await loadImage('../assets/images/2_countdown-1.png')
   challenge1Img = await loadImage('../assets/images/3_challenge-1.png')
@@ -23,6 +33,10 @@ async function setup() {
   challenge2Img = await loadImage('../assets/images/5_challenge-2.png')
   challenge2CompletedImg = await loadImage('../assets/images/6_challenge-2-completed.png')
   loadingImg = await loadImage('../assets/images/7_loading.png')
+
+  // load sounds
+  soundSwipe = await loadSound('../assets/sounds/swipe.mp3')
+  soundSwipeBack = await loadSound('../assets/sounds/swipe-back.mp3')
 
   createCanvas(2352 * FACTOR, 840 * FACTOR)
   frameRate(30)
