@@ -14,10 +14,10 @@ class Countdown {
   }
 
   start() {
-    // fade in
+    console.log('start animation')
     this.opacityTween = gsap.to(this, {
-      opacity: 255,
-      duration: 0.8,
+      opacity: 1,
+      duration: 1,
       onComplete: () => {
         this.animate()
       },
@@ -25,6 +25,7 @@ class Countdown {
   }
 
   animate() {
+    console.log('animate')
     this.tween = gsap.to(this, {
       angle: 0,
       duration: this.duration,
@@ -41,7 +42,7 @@ class Countdown {
     push()
     translate(this.x, this.y)
     scale(-1, 1)
-    fill(this.color)
+    fill(this.color + Math.floor(this.opacity * 255).toString(16).padStart(2, '0'))
     noStroke()
     arc(0, 0, this.size, this.size, -HALF_PI, radians(this.angle - 90), PIE)
     pop()

@@ -21,8 +21,8 @@ class Challenge1State {
   constructor() {
     // state
     this.state = null
-    this.shapeStartX = 200
-    this.shapeEndX = width - 200
+    this.shapeStartX = 300
+    this.shapeEndX = width - 300
 
     // values
     this.opacityAppearing = 0
@@ -39,17 +39,6 @@ class Challenge1State {
     this.initialMessageDisappearingTimeout = null
     this.shapePercentageTimeout = null
     this.waitForShapeAppearingTimeout = null
-
-    // countdown
-    this.countdown = new Countdown({
-      x: width - Challenge1State.TIMER_CIRCLE_OFFSET,
-      y: Challenge1State.TIMER_CIRCLE_OFFSET,
-      size: Challenge1State.TIMER_CIRCLE_SIZE,
-      duration: Challenge1State.GAMEPLAY_DURATION,
-      onComplete: () => {
-        this.state = Challenge1States.SHAPE_DISAPPEARING
-      },
-    })
 
     detection.goToInitStateWithNoDelay()
 
@@ -156,7 +145,6 @@ class Challenge1State {
         this.shapePercentageTimeout && clearTimeout(this.shapePercentageTimeout)
         this.shapePercentageTimeout = null
         this.state = Challenge1States.GAMEPLAY
-        this.countdown.start()
       },
     })
   }
@@ -168,7 +156,22 @@ class Challenge1State {
     line(this.shapeStartX, height / 2, this.shapeEndX, height / 2)
     pop()
 
-    this.countdown.draw()
+    if (!this.countdown) {
+      console.log('countdown')
+      // countdown
+      this.countdown = new Countdown({
+        x: width - Challenge1State.TIMER_CIRCLE_OFFSET,
+        y: Challenge1State.TIMER_CIRCLE_OFFSET,
+        size: Challenge1State.TIMER_CIRCLE_SIZE,
+        duration: Challenge1State.GAMEPLAY_DURATION,
+        onComplete: () => {
+          this.state = Challenge1States.SHAPE_DISAPPEARING
+        },
+      })
+      this.countdown.start()
+    } else {
+      this.countdown.draw()
+    }
   }
 
   shapeDisappearing() {
