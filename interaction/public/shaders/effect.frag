@@ -23,7 +23,7 @@ uniform float headOpacity;
 uniform float headGlowStrength;
 
 // constantes
-const vec3 BACKGROUND_COLOR = vec3(0.0, 0.0, 0.1);
+const vec3 BACKGROUND_COLOR = vec3(0.0, 0.0, 0.05);
 const vec3 LINE_COLOR = vec3(0.8, 0.8, 1.0);  // #CCCCFF
 const vec3 HEAD_COLOR = vec3(0.9, 0.9, 0.89); // #EAE9D7
 
@@ -38,7 +38,7 @@ float segmentGlow(vec2 p, vec2 a, vec2 b, float radius, float softness) {
   vec2 ba = b - a;
   float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
   float dist = length(pa - ba * h) - radius;
-  return exp(-pow(dist / softness, 0.8));
+  return exp(-pow(dist / softness, 0.6));
 }
 
 void main() {
@@ -72,7 +72,7 @@ void main() {
   vec3 finalColor = mix(baseColor, HEAD_COLOR, headGlow * headOpacity);
 
   // aplicar ruido
-  // float noise = random(pixelCoord * 0.01) * 0.05;
+  // float noise = random(pixelCoord * 0.01) * 0.1;
   // finalColor += vec3(noise);
 
   gl_FragColor = vec4(finalColor, 1.0);

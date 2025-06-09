@@ -186,11 +186,29 @@ class MSTGraph {
       if (!edge.fromPoint.isRandom || !edge.toPoint.isRandom) {
         let distance = dist(edge.fromPoint.x, edge.fromPoint.y, edge.toPoint.x, edge.toPoint.y)
         let opacity = map(distance, 0, this.minDistance, 200, 30) * this.opacity
+        
+        // calcular distancia al centro
+        const centerX = width / 2
+        const centerY = height / 2
+        const midX = (edge.fromPoint.x + edge.toPoint.x) / 2
+        const midY = (edge.fromPoint.y + edge.toPoint.y) / 2
+        const distanceToCenter = dist(midX, midY, centerX, centerY)
+        
+        // calcular grosor basado en distancia al centro y si tiene cabeza
+        const maxDistance = Math.max(width, height) / 2
+        const normalizedDistance = 1 - (distanceToCenter / maxDistance)
+        const baseWeight = 1
+        const centerWeight = 3
+        const headWeight = 2
+        const weight = baseWeight + 
+          (normalizedDistance * centerWeight) + 
+          ((!edge.fromPoint.isRandom || !edge.toPoint.isRandom) ? headWeight : 0)
+        
         stroke(255, 255, 255, opacity)
-        strokeWeight(1)
+        strokeWeight(weight)
       } else {
         stroke(255, 255, 255, 30 * this.opacity)
-        strokeWeight(1)
+        strokeWeight(2)
       }
       line(edge.fromPoint.x, edge.fromPoint.y, edge.toPoint.x, edge.toPoint.y)
     }

@@ -18,6 +18,15 @@ let loadingImg
 // sounds
 let soundSwipe
 let soundSwipeBack
+let soundYes
+
+// función para iniciar el audio
+function startAudio() {
+  if (getAudioContext().state !== 'running') {
+    getAudioContext().resume()
+  }
+}
+
 async function setup() {
   pixelDensity(1)
 
@@ -35,8 +44,9 @@ async function setup() {
   loadingImg = await loadImage('../assets/images/7_loading.png')
 
   // load sounds
-  soundSwipe = await loadSound('../assets/sounds/swipe-1.mp3')
-  soundSwipeBack = await loadSound('../assets/sounds/swipe-back.mp3')
+  soundSwipe = await loadSound('../assets/sounds/swoosh-1.mp3')
+  soundSwipeBack = await loadSound('../assets/sounds/swoosh-2.mp3')
+  soundYes = await loadSound('../assets/sounds/yes.mp3')
 
   createCanvas(2352 * FACTOR, 840 * FACTOR)
   frameRate(30)
@@ -45,6 +55,9 @@ async function setup() {
   state = new IntroState()
 
   await detection.init()
+
+  // agregar evento de clic para iniciar audio
+  document.addEventListener('click', startAudio)
 }
 
 function draw() {

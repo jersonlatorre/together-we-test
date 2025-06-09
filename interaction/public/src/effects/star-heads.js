@@ -20,6 +20,12 @@ class StarHeads {
     this.headFactors = []
     this.tweenSpeed = 0.1
     this.canInteract = false
+    // array para rastrear qué cabezas ya han sonado
+    this.soundedHeads = []
+    // array para almacenar los osciladores
+    this.oscillators = []
+    // notas de la escala pentatónica (en Hz)
+    this.pentatonicNotes = [261.63, 293.66, 329.63, 392.00, 440.00] // C4, D4, E4, G4, A4
 
     // efectos de alineación múltiple
     this.alignedHeads = []
@@ -45,11 +51,21 @@ class StarHeads {
     // asegurar que tenemos suficientes factores para todas las cabezas
     while (this.headFactors.length < headData.length) {
       this.headFactors.push({ current: 1, target: 1 })
+      // crear un nuevo oscilador para cada cabeza
+      const osc = new p5.Oscillator('sine')
+      osc.amp(0.3) // volumen al 30%
+      this.oscillators.push(osc)
     }
 
     // remover factores sobrantes si hay menos cabezas
     if (this.headFactors.length > headData.length) {
       this.headFactors = this.headFactors.slice(0, headData.length)
+      this.soundedHeads = this.soundedHeads.slice(0, headData.length)
+      // detener y remover osciladores sobrantes
+      for (let i = headData.length; i < this.oscillators.length; i++) {
+        this.oscillators[i].stop()
+      }
+      this.oscillators = this.oscillators.slice(0, headData.length)
     }
 
     this.effectsLayer.clear()
@@ -70,6 +86,20 @@ class StarHeads {
 
         if (isAligned) {
           this.alignedHeads.push({ coords, index: i })
+          // reproducir nota solo si la cabeza no ha sonado antes
+          if (!this.soundedHeads[i] && getAudioContext().state === 'running') {
+            const note = this.pentatonicNotes[i % this.pentatonicNotes.length]
+            this.oscillators[i].freq(note)
+            this.oscillators[i].start()
+            // detener el oscilador después de 0.2 segundos
+            setTimeout(() => {
+              this.oscillators[i].stop()
+            }, 200)
+            this.soundedHeads[i] = true
+          }
+        } else {
+          // resetear el estado de sonido cuando la cabeza sale del área
+          this.soundedHeads[i] = false
         }
       } else {
         this.headFactors[i].target = 1
@@ -118,6 +148,7 @@ class StarHeads {
       // configurar stroke para las líneas de la estrella
       this.effectsLayer.noFill()
       this.effectsLayer.stroke(color[0], color[1], color[2], 100)
+      this.effectsLayer.strokeWeight(2)
 
       // dibujar estrella con resonancia
       for (let j = 0; j < this.N; j++) {
@@ -218,6 +249,11 @@ class StarHeads {
     this.connectionOpacity = 0
     this.resonanceEffect = 0
     this.particles = []
+    this.soundedHeads = []
+    // detener todos los osciladores
+    for (const osc of this.oscillators) {
+      osc.stop()
+    }
   }
 
   calculateHeadCoordinates(head, scaledWidth, scaledHeight, x, y) {
