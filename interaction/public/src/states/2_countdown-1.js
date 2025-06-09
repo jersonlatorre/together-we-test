@@ -39,6 +39,9 @@ class CountDown1State {
       this.countdown.remove()
     }
     this.countdown = null
+    if (this.countdownOpacityTween) {
+      this.countdownOpacityTween.kill()
+    }
     this.countdownOpacityTween = null
     this.countdownOpacity = 0
   }

@@ -30,6 +30,7 @@ class Challenge2State {
     // timeouts
     this.initialMessageAppearingTimeout = null
     this.initialMessageDisappearingTimeout = null
+    this.gameplayDelayTimeout = null
 
     // countdown
     this.countdown = new Countdown({
@@ -125,8 +126,8 @@ class Challenge2State {
         this.backgroundOpacityTween = null
         this.state = Challenge2States.GAMEPLAY
         this.countdown.start()
-        this.delayTimeout && clearTimeout(this.delayTimeout)
-        this.delayTimeout = null
+        this.gameplayDelayTimeout && clearTimeout(this.gameplayDelayTimeout)
+        this.gameplayDelayTimeout = null
         detection.goToChallenge2State()
 
         detection.mstGraph.startFadeIn()
@@ -150,8 +151,8 @@ class Challenge2State {
     this.backgroundOpacityTween && this.backgroundOpacityTween.kill()
     this.initialMessageAppearingTimeout && clearTimeout(this.initialMessageAppearingTimeout)
     this.initialMessageDisappearingTimeout && clearTimeout(this.initialMessageDisappearingTimeout)
-    this.delayTimeout && clearTimeout(this.delayTimeout)
-    this.delayTimeout = null
+    this.gameplayDelayTimeout && clearTimeout(this.gameplayDelayTimeout)
+    this.gameplayDelayTimeout = null
     this.countdown.remove()
     gsap.killTweensOf(this)
     return true

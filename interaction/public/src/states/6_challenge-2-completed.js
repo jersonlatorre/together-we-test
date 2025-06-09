@@ -5,12 +5,12 @@ class Challenge2CompletedState {
     this.count = 5
     this.lastUpdate = millis()
     this.opacity = 0
-    this.fadeInTween = null
+    this.fadeInOpacityTween = null
     this.init()
   }
 
   init() {
-    this.fadeInTween = gsap.to(this, {
+    this.fadeInOpacityTween = gsap.to(this, {
       opacity: 255,
       duration: Challenge2CompletedState.FADE_IN_DURATION,
       ease: 'power2.out',
@@ -18,7 +18,7 @@ class Challenge2CompletedState {
   }
 
   remove() {
-    this.fadeInTween && this.fadeInTween.kill()
+    this.fadeInOpacityTween && this.fadeInOpacityTween.kill()
     gsap.killTweensOf(this)
   }
 

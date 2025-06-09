@@ -1,23 +1,22 @@
 class LoadingState {
   constructor() {
     this.duration = 3
-    this.opacityTween = null
-    this.delayTween = null
-    this.delayedCall = null
+    this.fadeOpacityTween = null
+    this.fadeDelayedCall = null
     this.opacity = 0
     this.init()
   }
 
   init() {
-    this.opacityTween = gsap.to(this, {
+    this.fadeOpacityTween = gsap.to(this, {
       opacity: 255,
       duration: 1,
       ease: 'power2.out',
     })
 
-    this.delayedCall = gsap.delayedCall(this.duration, () => {
-      this.opacityTween && this.opacityTween.kill()
-      this.opacityTween = gsap.to(this, {
+    this.fadeDelayedCall = gsap.delayedCall(this.duration, () => {
+      this.fadeOpacityTween && this.fadeOpacityTween.kill()
+      this.fadeOpacityTween = gsap.to(this, {
         opacity: 0,
         duration: 1,
         ease: 'power2.in',
@@ -32,10 +31,10 @@ class LoadingState {
   }
 
   remove() {
-    this.opacityTween && this.opacityTween.kill()
-    this.delayedCall && this.delayedCall.kill()
-    this.opacityTween = null
-    this.delayedCall = null
+    this.fadeOpacityTween && this.fadeOpacityTween.kill()
+    this.fadeDelayedCall && this.fadeDelayedCall.kill()
+    this.fadeOpacityTween = null
+    this.fadeDelayedCall = null
     this.opacity = 0
   }
 
