@@ -35,7 +35,7 @@ async function setup() {
   loadingImg = await loadImage('../assets/images/7_loading.png')
 
   // load sounds
-  soundSwipe = await loadSound('../assets/sounds/swipe.mp3')
+  soundSwipe = await loadSound('../assets/sounds/swipe-1.mp3')
   soundSwipeBack = await loadSound('../assets/sounds/swipe-back.mp3')
 
   createCanvas(2352 * FACTOR, 840 * FACTOR)

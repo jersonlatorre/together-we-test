@@ -118,7 +118,7 @@ class Challenge1State {
     pop()
 
     if (this.opacityDisappearingTween) return
-    
+
     this.opacityDisappearingTween = gsap.to(this, {
       opacityDisappearing: 0,
       duration: Challenge1State.DISAPPEARING_DURATION,
@@ -139,15 +139,22 @@ class Challenge1State {
 
   shapeAppearing() {
     push()
+    // calcular grosor basado en cabezas alineadas
+    const alignedCount = detection.starHeads.alignedHeads ? detection.starHeads.alignedHeads.length : 0
+    const baseStrokeWeight = 50
+    const maxStrokeWeight = 150
+    const lineWeight = Math.min(baseStrokeWeight + alignedCount * 15, maxStrokeWeight)
+    
     stroke(226, 231, 213, 50)
-    strokeWeight(50)
-    line(this.shapeStartX, height / 2, this.shapeStartX + (this.shapeEndX - this.shapeStartX) * this.shapePercentage, height / 2)
+    strokeWeight(lineWeight)
+    line(this.shapeStartX, height * 0.3, this.shapeStartX + (this.shapeEndX - this.shapeStartX) * this.shapePercentage, height * 0.3)
     pop()
 
     if (this.shapePercentageTween) return
 
     // tween para que la línea aparezca
-    // soundSwipe.play()
+    soundSwipe.play()
+    console.log('shapeAppearing')
 
     this.shapePercentageTween = gsap.to(this, {
       shapePercentage: 1,
@@ -168,9 +175,15 @@ class Challenge1State {
 
   gameplay() {
     push()
+    // calcular grosor basado en cabezas alineadas
+    const alignedCount = detection.starHeads.alignedHeads ? detection.starHeads.alignedHeads.length : 0
+    const baseStrokeWeight = 50
+    const maxStrokeWeight = 150
+    const lineWeight = Math.min(baseStrokeWeight + alignedCount * 15, maxStrokeWeight)
+    
     stroke(226, 231, 213, 50)
-    strokeWeight(50)
-    line(this.shapeStartX, height / 2, this.shapeEndX, height / 2)
+    strokeWeight(lineWeight)
+    line(this.shapeStartX, height * 0.3, this.shapeEndX, height * 0.3)
     pop()
 
     this.countdown.draw()
@@ -178,17 +191,23 @@ class Challenge1State {
 
   shapeDisappearing() {
     push()
+    // calcular grosor basado en cabezas alineadas
+    const alignedCount = detection.starHeads.alignedHeads ? detection.starHeads.alignedHeads.length : 0
+    const baseStrokeWeight = 50
+    const maxStrokeWeight = 150
+    const lineWeight = Math.min(baseStrokeWeight + alignedCount * 15, maxStrokeWeight)
+    
     stroke(226, 231, 213, 50)
-    strokeWeight(50)
-    line(this.shapeStartX, height / 2, this.shapeStartX + (this.shapeEndX - this.shapeStartX) * this.shapePercentage, height / 2)
+    strokeWeight(lineWeight)
+    line(this.shapeStartX, height * 0.3, this.shapeStartX + (this.shapeEndX - this.shapeStartX) * this.shapePercentage, height * 0.3)
     pop()
 
     if (this.shapePercentageTween) return
 
     // resetear tamaño de star-heads y desactivar interacción
-    detection.starHeads.targetFactor = 1
+    detection.starHeads.resetAllFactors()
     detection.starHeads.canInteract = false
-    // soundSwipeBack.play()
+    soundSwipeBack.play()
 
     // tween para que la línea desaparezca
     this.shapePercentageTween = gsap.to(this, {
@@ -212,7 +231,7 @@ class Challenge1State {
     this.waitForShapeAppearingTimeout && clearTimeout(this.waitForShapeAppearingTimeout)
     this.shapePercentageTimeout && clearTimeout(this.shapePercentageTimeout)
     this.countdown.remove()
-    detection.starHeads.targetFactor = 1
+    detection.starHeads.resetAllFactors()
     detection.starHeads.canInteract = false
     gsap.killTweensOf(this)
     return true

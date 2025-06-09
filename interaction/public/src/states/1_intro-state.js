@@ -12,7 +12,7 @@ class IntroState {
     this.fadeOpacityTween = gsap.to(this, {
       fadeOpacity: 0,
       duration: 1,
-      ease: 'none'
+      ease: 'none',
     })
   }
 
@@ -27,7 +27,7 @@ class IntroState {
     tint(255, 255)
     image(introImg, 0, 0, width, height)
     pop()
-    
+
     fill(0, this.fadeOpacity)
     rect(0, 0, width, height)
 
