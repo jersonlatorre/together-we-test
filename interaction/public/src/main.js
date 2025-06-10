@@ -7,8 +7,8 @@ let fontLexend
 let fontMorganite
 
 // images
-let introImg
-let countdown1Img
+let challenge0Img
+let challenge0CompletedImg
 let challenge1Img
 let challenge1CompletedImg
 let challenge2Img
@@ -35,8 +35,8 @@ async function setup() {
   fontMorganite = await loadFont('../assets/fonts/Morganite-Bold.ttf')
 
   // load images
-  introImg = await loadImage('../assets/images/1_intro.png')
-  countdown1Img = await loadImage('../assets/images/2_countdown-1.png')
+  challenge0Img = await loadImage('../assets/images/1_challenge-0.png')
+  challenge0CompletedImg = await loadImage('../assets/images/2_challenge-0-completed.png')
   challenge1Img = await loadImage('../assets/images/3_challenge-1.png')
   challenge1CompletedImg = await loadImage('../assets/images/4_challenge-1-completed.png')
   challenge2Img = await loadImage('../assets/images/5_challenge-2.png')
@@ -52,7 +52,7 @@ async function setup() {
   frameRate(30)
 
   detection = new Detection()
-  state = new IntroState()
+  state = new Challenge0State()
 
   await detection.init()
 
@@ -68,14 +68,14 @@ function draw() {
 async function keyPressed() {
   if (key === '1') {
     state.remove()
-    state = new IntroState()
+    state = new Challenge0State()
     state.init()
     detection.goToInitState()
   }
 
   if (key === '2') {
     state.remove()
-    state = new CountDown1State()
+    state = new Challenge0CompletedState()
     state.init()
   }
 

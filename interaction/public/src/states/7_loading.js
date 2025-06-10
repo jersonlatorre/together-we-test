@@ -1,6 +1,6 @@
 class LoadingState {
   constructor() {
-    this.duration = 3
+    this.duration = 5
     this.fadeOpacityTween = null
     this.fadeDelayedCall = null
     this.opacity = 0
@@ -23,7 +23,7 @@ class LoadingState {
         onComplete: () => {
           this.remove()
           detection.goToInitStateWithNoDelay()
-          state = new IntroState()
+          state = new Challenge0State()
           state.init()
         },
       })

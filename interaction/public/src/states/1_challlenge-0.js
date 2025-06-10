@@ -1,15 +1,15 @@
-const Challenge2States = {
+const Challenge0States = {
   INITIAL_MESSAGE_APPEARING: 0,
   INITIAL_MESSAGE_DISAPPEARING: 1,
   GAMEPLAY: 2,
   COMPLETED: 3,
 }
 
-class Challenge2State {
-  static APPEARING_DURATION = 1
+class Challenge0State {
+  static APPEARING_DURATION = 2
   static DISAPPEARING_DURATION = 1
   static DELAY_BEFORE_DISAPPEARING = 1000
-  static GAMEPLAY_DURATION = 60
+  static GAMEPLAY_DURATION = 40
   static TIMER_CIRCLE_SIZE = 60
   static TIMER_CIRCLE_OFFSET = 60
 
@@ -20,141 +20,112 @@ class Challenge2State {
     // values
     this.opacityAppearing = 0
     this.opacityDisappearing = 255
-    this.backgroundOpacity = 255
 
     // tweens
     this.opacityAppearingTween = null
     this.opacityDisappearingTween = null
-    this.backgroundOpacityTween = null
 
     // timeouts
     this.initialMessageAppearingTimeout = null
     this.initialMessageDisappearingTimeout = null
-    this.gameplayDelayTimeout = null
 
     // countdown
     this.countdown = new Countdown({
-      x: width - Challenge2State.TIMER_CIRCLE_OFFSET,
-      y: Challenge2State.TIMER_CIRCLE_OFFSET,
-      size: Challenge2State.TIMER_CIRCLE_SIZE,
-      duration: Challenge2State.GAMEPLAY_DURATION,
+      x: width - Challenge0State.TIMER_CIRCLE_OFFSET,
+      y: Challenge0State.TIMER_CIRCLE_OFFSET,
+      size: Challenge0State.TIMER_CIRCLE_SIZE,
+      duration: Challenge0State.GAMEPLAY_DURATION,
       onComplete: () => {
-        this.state = Challenge2States.COMPLETED
+        this.state = Challenge0States.COMPLETED
       },
     })
-
-    detection.goToInitStateWithNoDelay()
 
     this.init()
   }
 
   init() {
-    this.state = Challenge2States.INITIAL_MESSAGE_APPEARING
+    detection.goToInitStateWithNoDelay()
+    this.state = Challenge0States.INITIAL_MESSAGE_APPEARING
   }
 
   draw() {
     switch (this.state) {
-      case Challenge2States.INITIAL_MESSAGE_APPEARING:
+      case Challenge0States.INITIAL_MESSAGE_APPEARING:
         this.initialMessageAppearing()
         break
-      case Challenge2States.INITIAL_MESSAGE_DISAPPEARING:
+      case Challenge0States.INITIAL_MESSAGE_DISAPPEARING:
         this.initialMessageDisappearing()
         break
-      case Challenge2States.GAMEPLAY:
+      case Challenge0States.GAMEPLAY:
         this.gameplay()
         break
-      case Challenge2States.COMPLETED:
-        state.remove()
-        state = new Challenge2CompletedState()
+      case Challenge0States.COMPLETED:
+        this.remove()
+        state = new Challenge0CompletedState()
         state.init()
         break
     }
   }
 
   initialMessageAppearing() {
-    // fondo negro fijo
     push()
-    fill(0)
-    rect(0, 0, width, height)
-    pop()
-
-    // imagen que aparece
-    push()
+    background(0)
     tint(255, this.opacityAppearing)
-    image(challenge2Img, 0, 0, width, height)
+    image(challenge0Img, 0, 0, width, height)
     pop()
 
     if (this.opacityAppearingTween) return
 
     this.opacityAppearingTween = gsap.to(this, {
       opacityAppearing: 255,
-      duration: Challenge2State.APPEARING_DURATION,
+      duration: Challenge0State.APPEARING_DURATION,
+      ease: 'power2.out',
       onComplete: () => {
         this.initialMessageAppearingTimeout = setTimeout(() => {
           this.opacityAppearingTween && this.opacityAppearingTween.kill()
           this.opacityAppearingTween = null
           this.initialMessageAppearingTimeout && clearTimeout(this.initialMessageAppearingTimeout)
           this.initialMessageAppearingTimeout = null
-          this.state = Challenge2States.INITIAL_MESSAGE_DISAPPEARING
-        }, Challenge2State.DELAY_BEFORE_DISAPPEARING)
-      },
+          this.state = Challenge0States.INITIAL_MESSAGE_DISAPPEARING
+        }, Challenge0State.DELAY_BEFORE_DISAPPEARING)
+      }
     })
   }
 
   initialMessageDisappearing() {
-    // fondo negro que desaparece
     push()
-    fill(0, this.backgroundOpacity)
-    rect(0, 0, width, height)
-    pop()
-
-    // imagen que desaparece
-    push()
+    background(0)
     tint(255, this.opacityDisappearing)
-    image(challenge2Img, 0, 0, width, height)
+    image(challenge0Img, 0, 0, width, height)
     pop()
 
     if (this.opacityDisappearingTween) return
 
     this.opacityDisappearingTween = gsap.to(this, {
       opacityDisappearing: 0,
-      duration: Challenge2State.DISAPPEARING_DURATION,
+      duration: Challenge0State.DISAPPEARING_DURATION,
+      ease: 'power2.in',
       onComplete: () => {
         this.opacityDisappearingTween && this.opacityDisappearingTween.kill()
         this.opacityDisappearingTween = null
-        this.backgroundOpacityTween && this.backgroundOpacityTween.kill()
-        this.backgroundOpacityTween = null
-        this.state = Challenge2States.GAMEPLAY
+        this.state = Challenge0States.GAMEPLAY
         this.countdown.start()
-        this.gameplayDelayTimeout && clearTimeout(this.gameplayDelayTimeout)
-        this.gameplayDelayTimeout = null
-        detection.goToChallenge2State()
-
-        detection.mstGraph.startFadeIn()
-        detection.mstGraph.generateRandomPoints()
-      },
-    })
-
-    this.backgroundOpacityTween = gsap.to(this, {
-      backgroundOpacity: 0,
-      duration: Challenge2State.DISAPPEARING_DURATION,
+        detection.goToChallenge0State()
+      }
     })
   }
 
   gameplay() {
+    // aquí solo se muestran las siluetas y el shader
     this.countdown.draw()
   }
 
   remove() {
     this.opacityAppearingTween && this.opacityAppearingTween.kill()
     this.opacityDisappearingTween && this.opacityDisappearingTween.kill()
-    this.backgroundOpacityTween && this.backgroundOpacityTween.kill()
     this.initialMessageAppearingTimeout && clearTimeout(this.initialMessageAppearingTimeout)
     this.initialMessageDisappearingTimeout && clearTimeout(this.initialMessageDisappearingTimeout)
-    this.gameplayDelayTimeout && clearTimeout(this.gameplayDelayTimeout)
-    this.gameplayDelayTimeout = null
     this.countdown.remove()
     gsap.killTweensOf(this)
-    return true
   }
 }

@@ -38,7 +38,7 @@ class Challenge2CompletedState {
       if (this.count === 0) {
         detection.goToInitStateWithNoDelay()
         state.remove()
-        state = new LoadingState()
+        state = new Challenge0State()
         state.init()
       }
     }

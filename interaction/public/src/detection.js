@@ -1,7 +1,8 @@
 class DetectionStates {
   static INIT = 0
-  static CHALLENGE_1 = 1
-  static CHALLENGE_2 = 2
+  static CHALLENGE_0 = 1
+  static CHALLENGE_1 = 2
+  static CHALLENGE_2 = 3
 }
 
 class Detection {
@@ -76,6 +77,9 @@ class Detection {
       case DetectionStates.INIT:
         this.drawInitState()
         break
+      case DetectionStates.CHALLENGE_0:
+        this.drawChallenge0State()
+        break
       case DetectionStates.CHALLENGE_1:
         this.drawChallenge1State()
         break
@@ -108,6 +112,32 @@ class Detection {
     this.shaderLayer.rect(-width / 2, -height / 2, width, height)
 
     // mostrar la capa en el canvas principal sin transformaciones adicionales
+    image(this.shaderLayer, 0, 0)
+  }
+
+  drawChallenge0State() {
+    const lineData = this.poseManager.getLineData()
+    const headData = this.poseManager.getHeadData()
+
+    const { linesArray, count } = prepareLinesData(lineData, this.dimensions)
+    const { headsArray, headCount } = prepareHeadsData(headData, this.dimensions)
+
+    // aplicar shader sobre la capa específica
+    this.shaderLayer.shader(this.shader)
+    this.shader.setUniform('lineCount', count)
+    this.shader.setUniform('lines', linesArray)
+    this.shader.setUniform('headCount', headCount)
+    this.shader.setUniform('heads', headsArray)
+    this.shader.setUniform('canvasSize', [width, height])
+    this.shader.setUniform('lineOpacity', this.lineOpacity)
+    this.shader.setUniform('lineGlowStrength', this.lineGlowStrength)
+    this.shader.setUniform('headOpacity', this.headOpacity)
+    this.shader.setUniform('headGlowStrength', this.headGlowStrength)
+
+    // dibujar un rectángulo centrado para activar el shader en WEBGL
+    this.shaderLayer.rect(-width / 2, -height / 2, width, height)
+
+    // mostrar la capa en el canvas principal
     image(this.shaderLayer, 0, 0)
   }
 
@@ -186,6 +216,18 @@ class Detection {
       duration: 2,
     })
     this.state = DetectionStates.INIT
+  }
+
+  goToChallenge0State() {
+    this.shaderTween?.kill()
+    this.shaderTween = gsap.to(this, {
+      lineOpacity: 0.5,
+      lineGlowStrength: 4.0,
+      headOpacity: 0.7,
+      headGlowStrength: 2.0,
+      duration: 2,
+    })
+    this.state = DetectionStates.CHALLENGE_0
   }
 
   goToChallenge1State() {
