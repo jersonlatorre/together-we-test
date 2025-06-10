@@ -17,6 +17,7 @@ class Challenge1State {
   static GAMEPLAY_DURATION = 10
   static TIMER_CIRCLE_SIZE = 60
   static TIMER_CIRCLE_OFFSET = 60
+  static STROKE_WEIGHT = 20
 
   constructor() {
     // state
@@ -156,33 +157,26 @@ class Challenge1State {
   }
 
   shapeAppearing() {
-    console.log('shapeAppearing - started:', this.shapeAppearingStarted)
     push()
     stroke(226, 231, 213, 50)
-    strokeWeight(40)
+    strokeWeight(Challenge1State.STROKE_WEIGHT)
     line(this.shapeStartX, height * 0.3, this.shapeStartX + (this.shapeEndX - this.shapeStartX) * this.shapePercentage, height * 0.3)
     pop()
 
-    if (this.shapeAppearingStarted) {
-      console.log('shapeAppearing - already started, returning')
-      return
-    }
+    if (this.shapeAppearingStarted) return
 
     this.shapeAppearingStarted = true
-    console.log('shapeAppearing - setting started to true')
 
     this.shapePercentageTween = gsap.to(this, {
       shapePercentage: 1,
       duration: Challenge1State.SHAPE_APPEARING_DURATION,
       ease: 'power2.out',
       onStart: () => {
-        console.log('shapeAppearing - tween onStart, playing sound')
         if (getAudioContext().state === 'running') {
           soundSwipe.play()
         }
       },
       onComplete: () => {
-        console.log('shapeAppearing - tween onComplete')
         // activar interacción de star-heads cuando termine la animación de la línea
         detection.starHeads.canInteract = true
         this.countdown.start()
@@ -198,7 +192,7 @@ class Challenge1State {
   gameplay() {
     push()
     stroke(226, 231, 213, 50)
-    strokeWeight(40)
+    strokeWeight(Challenge1State.STROKE_WEIGHT)
     line(this.shapeStartX, height * 0.3, this.shapeEndX, height * 0.3)
     pop()
 
@@ -209,7 +203,7 @@ class Challenge1State {
     console.log('shapeDisappearing - started:', this.shapeDisappearingStarted)
     push()
     stroke(226, 231, 213, 50)
-    strokeWeight(40)
+    strokeWeight(Challenge1State.STROKE_WEIGHT)
     line(this.shapeStartX, height * 0.3, this.shapeStartX + (this.shapeEndX - this.shapeStartX) * this.shapePercentage, height * 0.3)
     pop()
 
@@ -258,5 +252,69 @@ class Challenge1State {
     detection.starHeads.canInteract = false
     gsap.killTweensOf(this)
     return true
+  }
+}
+
+class ParticleSystem {
+  constructor() {
+    this.particles = []
+    this.maxParticles = 50
+    this.emissionRate = 1
+  }
+
+  addParticle(x, y) {
+    if (this.particles.length >= this.maxParticles) return
+
+    this.particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 4,
+      vy: (Math.random() - 0.5) * 4,
+      life: 1.0,
+      decay: 0.02,
+      size: Math.random() * 6 + 2,
+    })
+  }
+
+  emitFromAlignedHead(x, y) {
+    if (Math.random() < this.emissionRate) {
+      this.addParticle(x, y)
+    }
+  }
+
+  update() {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i]
+
+      // actualizar posición
+      p.x += p.vx
+      p.y += p.vy
+      p.life -= p.decay
+
+      // remover partículas muertas
+      if (p.life <= 0) {
+        this.particles.splice(i, 1)
+      }
+    }
+  }
+
+  draw() {
+    noStroke()
+    for (const p of this.particles) {
+      const alpha = p.life * 255
+      fill(255, 255, 255, alpha)
+      circle(p.x, p.y, p.size * p.life)
+    }
+  }
+
+  clear() {
+    this.particles = []
+  }
+}
+
+class Particle {
+  constructor(x, y) {
+    this.x = x
+    this.y = y
   }
 }
