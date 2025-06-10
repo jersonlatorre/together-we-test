@@ -56,7 +56,10 @@ class StarHeads {
       this.headFactors.push({ current: 1, target: 1 })
       // crear un nuevo oscilador para cada cabeza
       const osc = new p5.Oscillator('sine')
-      osc.amp(0.3) // volumen al 30%
+      osc.amp(0) // empezar en silencio
+      setTimeout(() => {
+        osc.amp(0.3) // subir volumen después de 100ms
+      }, 100)
       this.oscillators.push(osc)
     }
 
@@ -84,7 +87,7 @@ class StarHeads {
 
       if (this.canInteract) {
         const distance = this.distanceToSegment(coords[0], coords[1], 300, height * 0.3, width - 300, height * 0.3)
-        const isAligned = distance < 50
+        const isAligned = distance < 30
         this.headFactors[i].target = isAligned ? 4 : 1
 
         if (isAligned) {
